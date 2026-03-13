@@ -1,42 +1,22 @@
-# azure-pipelines-backend.yml
 trigger:
   branches:
     include:
-      - main  # déclenche la pipeline sur le main branch
+      - main
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  ACR_NAME: 'eventsaasregistry'           # nom de ton Azure Container Registry
-  IMAGE_NAME: 'event-saas-backend'        # nom de l'image Docker backend
-  IMAGE_TAG: 'latest'                     # tag de l'image
-  CONTAINERAPP_NAME: 'event-saas-back'    # nom du Container App backend
-  RESOURCE_GROUP: 'Eventora'              # groupe de ressources Azure
-  ENVIRONMENT: 'event-saas-CAE'          # Container Apps Environment
+  ACR_NAME: 'eventsaasregistry'
+  IMAGE_NAME: 'event-saas-backend'
+  IMAGE_TAG: 'latest'
 
 steps:
-
-# Connexion à l'ACR (si service connection existante)
 - task: Docker@2
   displayName: Build and Push Docker image
   inputs:
-    containerRegistry: 'eventsaasregistry'  # le nom de ta service connection ACR
+    containerRegistry: '$(ACR_NAME)'
     repository: '$(IMAGE_NAME)'
     command: 'buildAndPush'
     Dockerfile: 'Dockerfile'
     tags: '$(IMAGE_TAG)'
-
-# Déploiement du Container App backend
-- task: AzureCLI@2
-  displayName: Deploy Backend Container App
-  inputs:
-    azureSubscription: 'Resalogic'           # nom de ta service connection Azure
-    scriptType: 'bash'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      az containerapp update \
-        --name $(CONTAINERAPP_NAME) \
-        --resource-group $(RESOURCE_GROUP) \
-        --image $(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(IMAGE_TAG) \
-        --environment $(ENVIRONMENT)
