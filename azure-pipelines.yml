@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - master
+      - main
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -15,22 +15,8 @@ steps:
 - task: Docker@2
   displayName: Build and Push Docker image
   inputs:
-    containerRegistry: 'eventsaasregistry'    # Nom du service connection pour ACR
+    containerRegistry: '$(ACR_NAME)'
     repository: '$(IMAGE_NAME)'
     command: 'buildAndPush'
     Dockerfile: 'Dockerfile'
-    tags: |
-      $(IMAGE_TAG)
-
-- task: AzureCLI@2
-  displayName: Deploy Container App
-  inputs:
-    azureSubscription: 'Resalogic'   # Nom du service connection Azure
-    scriptType: 'bash'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      az containerapp update \
-        --name event-saas-backend \
-        --resource-group Eventora \
-        --image $(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(IMAGE_TAG) \
-        --container-name simple-hello-world-container
+    tags: '$(IMAGE_TAG)'
