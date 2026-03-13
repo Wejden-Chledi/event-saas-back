@@ -1,0 +1,22 @@
+trigger:
+  branches:
+    include:
+      - master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  ACR_NAME: 'eventsaasregistry'
+  IMAGE_NAME: 'event-saas-backend'
+  IMAGE_TAG: 'latest'
+
+steps:
+- task: Docker@2
+  displayName: Build and Push Backend Docker image
+  inputs:
+    containerRegistry: '$(ACR_NAME)'
+    repository: '$(IMAGE_NAME)'
+    command: 'buildAndPush'
+    Dockerfile: 'Dockerfile'
+    tags: '$(IMAGE_TAG)'
