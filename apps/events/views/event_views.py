@@ -4,6 +4,7 @@ from rest_framework import viewsets, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import PermissionDenied
 
 from apps.events.models import Evenement, Inscription
 from apps.events.serializers import EvenementSerializer, InscriptionSerializer
@@ -20,9 +21,7 @@ class EvenementViewSet(viewsets.ModelViewSet):
 
         # gestionnaire → voit seulement les événements de son organisation
         if hasattr(user, "gestionnaire_profile"):
-            return Evenement.objects.filter(
-                organisation=user.gestionnaire_profile.organisation
-            )
+             return Evenement.objects.filter(createur=user)
 
         # utilisateur public → voit seulement événements publiés
         return Evenement.objects.filter(statut="publie")
@@ -38,7 +37,7 @@ class EvenementViewSet(viewsets.ModelViewSet):
                 createur=user
             )
         else:
-            raise permissions.PermissionDenied(
+            raise PermissionDenied(
                 "Seul un gestionnaire peut créer un événement."
             )
 

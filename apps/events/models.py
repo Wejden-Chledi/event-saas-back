@@ -5,7 +5,9 @@ import uuid
 import random
 import string
 from django.utils import timezone
-
+import qrcode
+from io import BytesIO
+from django.core.files.base import ContentFile
 from apps.organisations.models import Organisation
 
 Utilisateur = get_user_model()
@@ -235,36 +237,52 @@ class Inscription(models.Model):
 # =====================================================
 # BILLET
 # =====================================================
+
 class Billet(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     inscription = models.OneToOneField(
-        Inscription,
+        "Inscription",
         on_delete=models.CASCADE,
         related_name="billet"
     )
 
-    code = models.CharField(max_length=20, unique=True)
+    qr_code = models.ImageField(upload_to="billets_qr/", blank=True, null=True)
 
     date_emission = models.DateTimeField(auto_now_add=True)
+
     utilise = models.BooleanField(default=False)
+
     date_utilisation = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return self.code
+        return f"Billet {self.id}"
 
-    def generer_code_unique(self):
-        """Génère un code aléatoire unique pour le billet."""
-        while True:
-            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
-            if not Billet.objects.filter(code=code).exists():
-                return code
+    def generer_qr_code(self):
+
+        qr_data = f"billet:{self.id}"
+
+        qr = qrcode.make(qr_data)
+
+        buffer = BytesIO()
+        qr.save(buffer, format="PNG")
+
+        filename = f"billet_{self.id}.png"
+
+        self.qr_code.save(
+            filename,
+            ContentFile(buffer.getvalue()),
+            save=False
+        )
 
     def save(self, *args, **kwargs):
-        if not self.code:
-            self.code = self.generer_code_unique()
+
         super().save(*args, **kwargs)
+
+        if not self.qr_code:
+            self.generer_qr_code()
+            super().save(*args, **kwargs)
 # =====================================================
 # FEEDBACK
 # =====================================================
