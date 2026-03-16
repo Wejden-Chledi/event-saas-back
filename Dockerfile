@@ -1,21 +1,21 @@
+# Dockerfile pour event-saas-backend
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Installer dépendances système pour mysqlclient + build essentials
+# Installer les dépendances système pour mysqlclient
 RUN apt-get update && apt-get install -y \
     build-essential \
     default-libmysqlclient-dev \
     pkg-config \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copier requirements et installer Python packages
+# Copier requirements.txt et installer dépendances
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le reste du code
+# Copier le code source
 COPY . .
 
-EXPOSE 8000
-CMD ["gunicorn", "event-saas-back.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Commande de démarrage
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
