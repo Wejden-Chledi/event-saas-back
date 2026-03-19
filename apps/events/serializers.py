@@ -1,61 +1,41 @@
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
 from django.utils import timezone
-
-from .models import (
-    Evenement,
-    Billet,
-    Staff,
-    AssignationEvenement,
-    Inscription
-)
-
-Utilisateur = get_user_model()
-
+from apps.events.models import Evenement, AssignationEvenement, EventPhoto
+from apps.events.ai_service import generate_event_description as gen_desc  # ton service IA
 
 # ================================
 # EVENEMENT
 # ================================
-
 class EvenementSerializer(serializers.ModelSerializer):
-
     createur_nom = serializers.CharField(source="createur.nom", read_only=True)
     createur_prenom = serializers.CharField(source="createur.prenom", read_only=True)
-
     organisation_nom = serializers.CharField(source="organisation.nom", read_only=True)
-
     places_disponibles = serializers.SerializerMethodField()
     est_complet = serializers.SerializerMethodField()
 
     class Meta:
         model = Evenement
         fields = [
-    "id",
-    "titre",
-    "description",
-    "lieu",
-    "date_debut",
-    "date_fin",
-    "capacite_max",
-    "prix",
-    "statut",
-    "organisation",
-    "organisation_nom",
-    "createur",
-    "createur_nom",
-    "createur_prenom",
-    "date_creation",
-    "date_update",
-    "places_disponibles",
-    "est_complet",
-]
-
-        read_only_fields = [
-            "createur",
+            "id",
+            "titre",
+            "description",
+            "lieu",
+            "date_debut",
+            "date_fin",
+            "capacite_max",
+            "prix",
+            "statut",
             "organisation",
+            "organisation_nom",
+            "createur",
+            "createur_nom",
+            "createur_prenom",
             "date_creation",
             "date_update",
+            "places_disponibles",
+            "est_complet",
         ]
+        read_only_fields = ["createur", "organisation", "date_creation", "date_update"]
 
     def get_places_disponibles(self, obj):
         return obj.places_disponibles()
@@ -64,8 +44,10 @@ class EvenementSerializer(serializers.ModelSerializer):
         return obj.est_complet()
 
 
+# ================================
+# CREATE EVENEMENT (IA intégrée)
+# ================================
 class EvenementCreateSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Evenement
         fields = [
@@ -79,159 +61,70 @@ class EvenementCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-
         date_debut = attrs.get("date_debut")
         date_fin = attrs.get("date_fin")
 
         if date_debut >= date_fin:
-            raise serializers.ValidationError(
-                "La date de fin doit être après la date de début"
-            )
+            raise serializers.ValidationError("La date de fin doit être après la date de début")
 
         if date_debut < timezone.now():
-            raise serializers.ValidationError(
-                "La date de début ne peut pas être dans le passé"
-            )
-
-        return attrs
-# ================================
-# STAFF
-# ================================
-
-class StaffSerializer(serializers.ModelSerializer):
-
-    organisation_nom = serializers.CharField(
-        source="organisation.nom",
-        read_only=True
-    )
-
-    evenements_assignes = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Staff
-        fields = [
-            "id",
-            "nom",
-            "prenom",
-            "email",
-            "role",
-            "statut",
-            "organisation",
-            "organisation_nom",
-            "telephone",
-            "date_creation",
-            "evenements_assignes"
-        ]
-
-        read_only_fields = [
-            "date_creation"
-        ]
-
-    def get_evenements_assignes(self, obj):
-
-        assignations = obj.assignations.all()
-
-        return [
-            {
-                "id": a.evenement.id,
-                "titre": a.evenement.titre,
-                "dateDebut": a.evenement.dateDebut,
-                "dateFin": a.evenement.dateFin
-            }
-            for a in assignations
-        ]
-
-
-# ================================
-# STAFF CREATE
-# ================================
-
-class StaffCreateSerializer(serializers.ModelSerializer):
-
-    password = serializers.CharField(write_only=True)
-    password_confirm = serializers.CharField(write_only=True)
-
-    class Meta:
-        model = Staff
-        fields = [
-            "id",
-            "nom",
-            "prenom",
-            "email",
-            "password",
-            "password_confirm",
-            "telephone"
-        ]
-
-    def validate(self, attrs):
-
-        if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError(
-                "Les mots de passe ne correspondent pas"
-            )
+            raise serializers.ValidationError("La date de début ne peut pas être dans le passé")
 
         return attrs
 
     def create(self, validated_data):
+        # Si la description est vide, générer avec IA
+        if not validated_data.get("description"):
+            titre = validated_data.get("titre")
+            validated_data["description"] = gen_desc(titre)
+        return super().create(validated_data)
 
-        validated_data.pop("password_confirm")
 
-        password = validated_data.pop("password")
-
-        staff = Staff.objects.create(**validated_data)
-
-        staff.set_password(password)
-
-        staff.save()
-
-        return staff
 # ================================
-# STAFF UPDATE
+# UPDATE EVENEMENT
 # ================================
-
-
-class StaffUpdateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=False)
-    password_confirm = serializers.CharField(write_only=True, required=False)
-
+class EvenementUpdateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Staff
+        model = Evenement
         fields = [
-            "nom",
-            "prenom",
-            "email",
-            "telephone",
-            "password",
-            "password_confirm",
+            "titre",
+            "description",
+            "lieu",
+            "date_debut",
+            "date_fin",
+            "capacite_max",
+            "prix",
+            "statut",
         ]
 
+    def validate_capacite_max(self, value):
+        evenement = self.instance
+        inscriptions_payees = evenement.inscriptions.filter(statut="paye").count()
+        if value < inscriptions_payees:
+            raise serializers.ValidationError(
+                f"Capacité minimale {inscriptions_payees} (déjà inscrit et payé)."
+            )
+        return value
+
     def validate(self, attrs):
-        # si password est fourni, vérifier confirmation
-        if "password" in attrs or "password_confirm" in attrs:
-            if attrs.get("password") != attrs.get("password_confirm"):
-                raise serializers.ValidationError("Les mots de passe ne correspondent pas")
+        date_debut = attrs.get("date_debut", self.instance.date_debut)
+        date_fin = attrs.get("date_fin", self.instance.date_fin)
+        if date_debut >= date_fin:
+            raise serializers.ValidationError("La date de fin doit être après la date de début")
+        if date_debut < timezone.now():
+            raise serializers.ValidationError("La date de début ne peut pas être dans le passé")
         return attrs
 
-    def update(self, instance, validated_data):
-        password = validated_data.pop("password", None)
-        validated_data.pop("password_confirm", None)
-        instance = super().update(instance, validated_data)
-        if password:
-            instance.set_password(password)
-            instance.save()
-        return instance
-# ================================
-# ASSIGNATION STAFF EVENEMENT
-# ================================
 
+# ================================
+# ASSIGNATION STAFF À ÉVÉNEMENT
+# ================================
 class AssignationEvenementSerializer(serializers.ModelSerializer):
-
     staff_nom = serializers.CharField(source="staff.nom", read_only=True)
-
-    evenement_titre = serializers.CharField(
-        source="evenement.titre",
-        read_only=True
-    )
+    staff_prenom = serializers.CharField(source="staff.prenom", read_only=True)
+    organisation_id = serializers.IntegerField(source="staff.organisation.id", read_only=True)
+    organisation_nom = serializers.CharField(source="staff.organisation.nom", read_only=True)
+    evenement_titre = serializers.CharField(source="evenement.titre", read_only=True)
 
     class Meta:
         model = AssignationEvenement
@@ -240,68 +133,28 @@ class AssignationEvenementSerializer(serializers.ModelSerializer):
             "staff",
             "evenement",
             "date_assignation",
-            "est_actif",
             "staff_nom",
+            "staff_prenom",
+            "organisation_id",
+            "organisation_nom",
             "evenement_titre",
         ]
-
         read_only_fields = ["date_assignation"]
 
 
-
 # ================================
-# INSCRIPTION
+# PHOTOS D'ÉVÉNEMENT
 # ================================
-class InscriptionSerializer(serializers.ModelSerializer):
-
-    participant_nom = serializers.CharField(source="participant.nom", read_only=True)
-    participant_prenom = serializers.CharField(source="participant.prenom", read_only=True)
+class EventPhotoSerializer(serializers.ModelSerializer):
     evenement_titre = serializers.CharField(source="evenement.titre", read_only=True)
 
     class Meta:
-        model = Inscription
+        model = EventPhoto
         fields = [
             "id",
-            "participant",
             "evenement",
-            "date_inscription",
-            "statut",
-            "montant_paye",
-            "reference_paiement",
-            "participant_nom",
-            "participant_prenom",
             "evenement_titre",
+            "image",
+            "uploaded_at",
         ]
-        read_only_fields = ["date_inscription", "reference_paiement"]
-
-
-# ================================
-# BILLET
-# ================================
-class BilletSerializer(serializers.ModelSerializer):
-
-    inscription_details = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Billet
-        fields = [
-            "id",
-            "inscription",
-            "code",
-            "date_emission",
-            "utilise",
-            "date_utilisation",
-            "inscription_details"
-        ]
-        read_only_fields = ["code", "date_emission", "date_utilisation"]
-
-    def get_inscription_details(self, obj):
-        if obj.inscription:
-            return {
-                "evenement_titre": obj.inscription.evenement.titre,
-                "participant_nom": obj.inscription.participant.nom,
-                "participant_prenom": obj.inscription.participant.prenom,
-                "date_evenement": obj.inscription.evenement.date_debut,
-                "lieu": obj.inscription.evenement.lieu
-            }
-        return None
+        read_only_fields = ["uploaded_at"]

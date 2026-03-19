@@ -1,160 +1,37 @@
+# apps/events/urls.py
 from django.urls import path
-from . import views
-
+from rest_framework.routers import DefaultRouter
+from rest_framework.urlpatterns import format_suffix_patterns
+from apps.events.views import (
+    create_evenement_view,
+    list_evenements_view,
+    retrieve_evenement_view,
+    update_evenement_view,
+    delete_evenement_view,
+    assign_staff_view,
+    list_staff_assignes_view,
+    generate_event_description,
+    public_events
+)
 
 urlpatterns = [
+    # CRUD événements pour gestionnaire
+    path('gestionnaire/evenements/', list_evenements_view, name='list_evenements'),
+    path('gestionnaire/evenements/create/', create_evenement_view, name='create_evenement'),
+    path('gestionnaire/evenements/<int:evenement_id>/', retrieve_evenement_view, name='retrieve_evenement'),
+    path('gestionnaire/evenements/<int:evenement_id>/update/', update_evenement_view, name='update_evenement'),
+    path('gestionnaire/evenements/<int:evenement_id>/delete/', delete_evenement_view, name='delete_evenement'),
 
-    # =============================
-    # EVENEMENTS
-    # =============================
-    path(
-        "evenements/",
-        views.EvenementViewSet.as_view({
-            "get": "list",
-            "post": "create"
-        }),
-        name="evenement-list"
-    ),
+    # Assignation staff
+    path('gestionnaire/assignations/', assign_staff_view, name='assign_staff'),
+    path('gestionnaire/evenements/<int:evenement_id>/assignations/', list_staff_assignes_view, name='list_staff_assignes'),
 
-    path(
-        "evenements/<int:pk>/",
-        views.EvenementViewSet.as_view({
-            "get": "retrieve",
-            "put": "update",
-            "patch": "partial_update",
-            "delete": "destroy"
-        }),
-        name="evenement-detail"
-    ),
-
-    path(
-        "evenements/<int:pk>/participants/",
-        views.participants_event,
-        name="participants-evenement"
-    ),
-
-
-    # =============================
-    # STAFF
-    # =============================
-    path(
-        "staff/",
-        views.StaffViewSet.as_view({
-            "get": "list",
-            "post": "create"
-        }),
-        name="staff-list"
-    ),
-
-    path(
-        "staff/<uuid:pk>/",
-        views.StaffViewSet.as_view({
-            "get": "retrieve",
-            "put": "update",
-            "delete": "destroy"
-        }),
-        name="staff-detail"
-    ),
-
-    path(
-        "staff/<uuid:pk>/assigner-evenement/",
-        views.StaffViewSet.as_view({
-            "post": "assigner_evenement"
-        }),
-        name="staff-assigner-evenement"
-    ),
-
-
-    # =============================
-    # BILLETS
-    # =============================
-    path(
-        "billets/",
-        views.BilletViewSet.as_view({
-            "get": "list"
-        }),
-        name="billet-list"
-    ),
-
-    path(
-        "billets/<uuid:pk>/",
-        views.BilletViewSet.as_view({
-            "get": "retrieve"
-        }),
-        name="billet-detail"
-    ),
-
-    path(
-        "billets/<uuid:pk>/utiliser/",
-        views.BilletViewSet.as_view({
-            "post": "utiliser"
-        }),
-        name="billet-utiliser"
-    ),
-
-    path(
-        "billets/verifier-qr/",
-        views.BilletViewSet.as_view({
-            "post": "verifier_qr"
-        }),
-        name="billet-verifier-qr"
-    ),
-
-
-    # =============================
-    # PARTICIPANT
-    # =============================
-    path(
-        "register-event/",
-        views.register_event_participant,
-        name="register-event"
-    ),
-
-    path(
-        "mes-inscriptions/",
-        views.mes_inscriptions,
-        name="mes-inscriptions"
-    ),
-
-    path(
-        "mon-billet/<uuid:inscription_id>/",
-        views.mon_billet,
-        name="mon-billet"
-    ),
-
-    path(
-        "telecharger-billet-pdf/<uuid:inscription_id>/",
-        views.telecharger_billet_pdf,
-        name="telecharger-billet-pdf"
-    ),
-
-
-    # =============================
-    # PUBLIC EVENTS
-    # =============================
-    path(
-        "public-events/",
-        views.public_events,
-        name="public-events"
-    ),
-
-
-    # =============================
-    # DEBUG
-    # =============================
-    path(
-        "debug/profile/",
-        views.debug_user_profile,
-        name="debug-profile"
-    ),
-
-
-    # =============================
     # IA
-    # =============================
-    path(
-        "ia/generate-description/",
-        views.generate_event_description,
-        name="generate-description"
-    ),
+    path('ai/generate-description/', generate_event_description, name='generate_event_description'),
+
+    # Public
+    path('public/evenements/', public_events, name='public_events'),
 ]
+
+# Support des suffixes (.json, .api, etc.)
+urlpatterns = format_suffix_patterns(urlpatterns)

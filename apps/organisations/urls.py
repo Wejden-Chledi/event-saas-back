@@ -1,12 +1,21 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+# apps/organisations/urls.py
 
-from .views import OrganisationViewSet, AbonnementViewSet
-
-router = DefaultRouter()
-router.register(r'organisations', OrganisationViewSet)
-router.register(r'abonnements', AbonnementViewSet)
+from django.urls import path
+from .views import *
 
 urlpatterns = [
-    path('', include(router.urls)),
+
+    # ==============================
+    # ORGANISATION
+    # ==============================
+    path("create/", create_organisation_view),
+    path("me/", get_my_organisation_view),
+    path("update/", update_organisation_view),
+    path("delete/", delete_organisation_view),
+
+    # ==============================
+    # ABONNEMENT
+    # ==============================
+    path("abonnement/", get_abonnement_view),
+    path("abonnement/update/", update_abonnement_view),
 ]

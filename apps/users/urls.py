@@ -1,21 +1,43 @@
 # apps/users/urls.py
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
-from . import views
+from .views import *
 
 urlpatterns = [
-    # ---------------- JWT Authentication ----------------
-    path('login/', views.CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('logout/', views.logout_view, name='logout'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # ---------------------
+    # Auth
+    # ---------------------
+    path("auth/login/", CustomTokenObtainPairView.as_view(), name="login"),
+    path("auth/logout/", logout_view, name="logout"),
 
-    # ---------------- User Profile ----------------
-    path('profile/', views.profile_view, name='profile'),
+    # ---------------------
+    # Profil
+    # ---------------------
+    path("profile/", profile_view, name="profile"),
+    path("profile/update/", update_user_view, name="update_profile"),
 
-    # ---------------- Registration ----------------
-    path('register/', views.register_view, name='register'),
-    path('register-proprietaire/', views.register_proprietaire_view, name='register_proprietaire'),
-    path('register-participant/', views.register_participant_view, name='register_participant'),
-    path('update-proprietaire/', views.update_proprietaire_view, name='update_proprietaire'),
-    path('update-abonnement/', views.update_abonnement_view, name='update_abonnement'),
+    # ---------------------
+    # Proprietaire
+    # ---------------------
+    path("proprietaire/register/", register_proprietaire_view, name="register_proprietaire"),
+
+    # ---------------------
+    # Participant
+    # ---------------------
+    path("participant/register/", register_participant_view, name="register_participant"),
+
+    # ---------------------
+    # Gestionnaire (CRUD)
+    # ---------------------
+    path("gestionnaire/create/", create_gestionnaire_view, name="create_gestionnaire"),
+    path("gestionnaire/list/", list_gestionnaires_view, name="list_gestionnaires"),
+    path("gestionnaire/<int:gestionnaire_id>/update/", update_gestionnaire_view, name="update_gestionnaire"),
+    path("gestionnaire/<int:gestionnaire_id>/delete/", delete_gestionnaire_view, name="delete_gestionnaire"),
+
+    # ---------------------
+    # Staff (CRUD)
+    # ---------------------
+    path("staff/create/", create_staff_view, name="create_staff"),
+    path("staff/list/", list_staff_view, name="list_staff"),
+    path("staff/<int:staff_id>/update/", update_staff_view, name="update_staff"),
+    path("staff/<int:staff_id>/delete/", delete_staff_view, name="delete_staff"),
 ]

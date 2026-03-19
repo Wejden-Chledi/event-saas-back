@@ -1,131 +1,43 @@
-# apps/users/serializers.py
 from rest_framework import serializers
 from django.utils import timezone
 from datetime import timedelta
-
-from apps.users.models import Utilisateur, ParticipantProfile
+from .models import Utilisateur
 from apps.organisations.models import Organisation, Abonnement
 
 
-# ===============================
-# Serializer utilisateur simple
-# ===============================
+# ==============================
+# Serializer simple utilisateur
+# ==============================
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Utilisateur
         fields = [
-            "id",
-            "email",
-            "nom",
-            "prenom",
-            "role",
-            "statut",
-            "date_inscription"
+            "id", "email", "nom", "prenom", "role", "statut",
+            "date_inscription", "telephone", "date_naissance",
+            "adresse", "ville", "pays", "organisation",
         ]
+        read_only_fields = ["id", "date_inscription", "role", "organisation"]
 
 
-# ===============================
-# Register simple utilisateur
-# ===============================
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True)
-
-    class Meta:
-        model = Utilisateur
-        fields = ["email", "nom", "prenom", "password", "password_confirm"]
-
-    def validate(self, attrs):
-        if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError("Les mots de passe ne correspondent pas")
-        if Utilisateur.objects.filter(email=attrs["email"]).exists():
-            raise serializers.ValidationError("Cet email est déjà utilisé")
-        return attrs
-
-    def create(self, validated_data):
-        validated_data.pop("password_confirm")
-        return Utilisateur.objects.create_user(
-            email=validated_data["email"],
-            nom=validated_data["nom"],
-            prenom=validated_data["prenom"],
-            password=validated_data["password"],
-            role="proprietaire"
-        )
-
-
-# =====================================
-# Register Participant + Profile
-# =====================================
-class ParticipantRegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True, min_length=8)
-
-    date_naissance = serializers.DateField(required=False)
-    adresse = serializers.CharField(required=False, allow_blank=True)
-    ville = serializers.CharField(required=False, allow_blank=True)
-    code_postal = serializers.CharField(required=False, allow_blank=True)
-    profession = serializers.CharField(required=False, allow_blank=True)
-    bio = serializers.CharField(required=False, allow_blank=True)
-
-    class Meta:
-        model = Utilisateur
-        fields = [
-            "email", "nom", "prenom", "telephone",
-            "password", "password_confirm",
-            "date_naissance", "adresse", "ville",
-            "code_postal", "profession", "bio"
-        ]
-
-    def validate_email(self, value):
-        if Utilisateur.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Cet email est déjà utilisé.")
-        return value
-
-    def validate_date_naissance(self, value):
-        if value:
-            today = timezone.now().date()
-            age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
-            if age < 18:
-                raise serializers.ValidationError("Vous devez avoir au moins 18 ans.")
-        return value
-
-    def validate(self, attrs):
-        if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError("Les mots de passe ne correspondent pas.")
-        return attrs
-
-    def create(self, validated_data):
-        validated_data.pop("password_confirm")
-        profile_fields = ["date_naissance", "adresse", "ville", "code_postal", "profession", "bio"]
-        profile_data = {field: validated_data.pop(field, "") for field in profile_fields}
-
-        user = Utilisateur.objects.create_user(
-            email=validated_data["email"],
-            nom=validated_data["nom"],
-            prenom=validated_data["prenom"],
-            password=validated_data["password"],
-            telephone=validated_data.get("telephone", ""),
-            role="participant",
-            is_active=True
-        )
-
-        ParticipantProfile.objects.create(utilisateur=user, **profile_data)
-        return user
-
-
-# =====================================
-# Register Proprietaire + Organisation
-# =====================================
+# ==============================
+# Proprietaire + Organisation + Abonnement
+# ==============================
 class ProprietaireRegisterSerializer(serializers.Serializer):
-    # -------- Utilisateur --------
+
+    # USER
     nom = serializers.CharField(max_length=100)
     prenom = serializers.CharField(max_length=100)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)
-    telephone = serializers.CharField(max_length=20, required=False)
 
-    # -------- Organisation --------
+    telephone = serializers.CharField(max_length=20, required=False)
+    date_naissance = serializers.DateField(required=False)
+    adresse = serializers.CharField(required=False)
+    ville = serializers.CharField(required=False)
+    pays = serializers.CharField(required=False)
+
+    # ORGANISATION
     nom_organisation = serializers.CharField(max_length=200)
     secteur = serializers.ChoiceField(choices=[
         ("technologie", "Technologie"),
@@ -135,21 +47,22 @@ class ProprietaireRegisterSerializer(serializers.Serializer):
         ("commerce", "Commerce"),
         ("autre", "Autre"),
     ])
+
     email_contact = serializers.EmailField()
     telephone_organisation = serializers.CharField(max_length=20)
-    adresse = serializers.CharField()
-    ville = serializers.CharField()
-    pays = serializers.CharField()
+    adresse_org = serializers.CharField()
+    ville_org = serializers.CharField()
+    pays_org = serializers.CharField()
     site_web = serializers.URLField(required=False, allow_blank=True)
 
-    # -------- Abonnement --------
+    # ABONNEMENT
     type_abonnement = serializers.ChoiceField(
         choices=["gratuit", "basique", "pro", "premium"]
     )
 
-    # ===============================
+    # --------------------------
     # VALIDATIONS
-    # ===============================
+    # --------------------------
     def validate_email(self, value):
         if Utilisateur.objects.filter(email=value).exists():
             raise serializers.ValidationError("Cet email est déjà utilisé.")
@@ -160,60 +73,155 @@ class ProprietaireRegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("Les mots de passe ne correspondent pas.")
         return attrs
 
-    # ===============================
+    # --------------------------
     # CREATE
-    # ===============================
+    # --------------------------
     def create(self, validated_data):
-        # -------- user data --------
-        nom = validated_data.pop("nom")
-        prenom = validated_data.pop("prenom")
-        email = validated_data.pop("email")
-        password = validated_data.pop("password")
+
+        # USER
+        user_data = {
+            "nom": validated_data.pop("nom"),
+            "prenom": validated_data.pop("prenom"),
+            "email": validated_data.pop("email"),
+            "password": validated_data.pop("password"),
+            "telephone": validated_data.pop("telephone", ""),
+            "date_naissance": validated_data.pop("date_naissance", None),
+            "adresse": validated_data.pop("adresse", ""),
+            "ville": validated_data.pop("ville", ""),
+            "pays": validated_data.pop("pays", ""),
+            "role": "proprietaire",
+            "statut": "actif"
+        }
+
         validated_data.pop("confirm_password")
-        telephone = validated_data.pop("telephone", "")
+        user = Utilisateur.objects.create_user(**user_data)
 
-        user = Utilisateur.objects.create_user(
-            email=email,
-            nom=nom,
-            prenom=prenom,
-            password=password,
-            telephone=telephone,
-            role="proprietaire",
-            is_active=True
-        )
-
-        # -------- abonnement --------
+        # ABONNEMENT
         type_abonnement = validated_data.pop("type_abonnement")
+
+        duree_map = {
+            "gratuit": 30,
+            "basique": 30,
+            "pro": 90,
+            "premium": 365
+        }
+
+        montant_map = {
+            "gratuit": 0,
+            "basique": 50,
+            "pro": 140,
+            "premium": 500
+        }
+
         date_debut = timezone.now().date()
-
-        duree_mois_map = {"gratuit": 1, "basique": 1, "pro": 3, "premium": 12}
-        montant_map = {"gratuit": 0, "basique": 50.0, "pro": 140.0, "premium": 500.0}
-
-        duree_mois = duree_mois_map[type_abonnement]
-        montant = montant_map[type_abonnement]
-        date_fin = date_debut + timedelta(days=30 * duree_mois)
+        date_fin = date_debut + timedelta(days=duree_map[type_abonnement])
 
         abonnement = Abonnement.objects.create(
-            type=type_abonnement,
-            dateDebut=date_debut,
-            dateFin=date_fin,
-            montant=montant,
-            statut="actif"
+            plan=type_abonnement,
+            date_debut=date_debut,
+            date_fin=date_fin,
+            statut="actif",
+            montant=montant_map[type_abonnement]
         )
 
-        # -------- organisation --------
+        # ORGANISATION
         organisation = Organisation.objects.create(
             nom=validated_data["nom_organisation"],
             secteur=validated_data["secteur"],
-            emailContact=validated_data["email_contact"],
+            email_contact=validated_data["email_contact"],
             telephone=validated_data["telephone_organisation"],
-            adresse=validated_data["adresse"],
-            ville=validated_data["ville"],
-            pays=validated_data["pays"],
-            siteWeb=validated_data.get("site_web", ""),
+            adresse=validated_data["adresse_org"],
+            ville=validated_data["ville_org"],
+            pays=validated_data["pays_org"],
+            site_web=validated_data.get("site_web", ""),
             proprietaire=user,
-            abonnement=abonnement,
-            statutAbonnement="actif"
+            abonnement=abonnement
         )
 
+        # ✅ LIAISON IMPORTANTE
+        user.organisation = organisation
+        user.save()
+
         return user
+
+
+# ==============================
+# Participant
+# ==============================
+class ParticipantRegisterSerializer(serializers.ModelSerializer):
+
+    password = serializers.CharField(write_only=True, min_length=8)
+    password_confirm = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = Utilisateur
+        fields = [
+            "email", "nom", "prenom", "telephone",
+            "date_naissance", "adresse", "ville", "pays",
+            "password", "password_confirm"
+        ]
+
+    def validate_email(self, value):
+        if Utilisateur.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Cet email est déjà utilisé.")
+        return value
+
+    def validate(self, attrs):
+        if attrs["password"] != attrs["password_confirm"]:
+            raise serializers.ValidationError("Les mots de passe ne correspondent pas.")
+        return attrs
+
+    def create(self, validated_data):
+        validated_data.pop("password_confirm")
+
+        return Utilisateur.objects.create_user(
+            role="participant",
+            statut="actif",
+            **validated_data
+        )
+
+
+# ==============================
+# Gestionnaire
+# ==============================
+class GestionnaireCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Utilisateur
+        fields = [
+            "email", "nom", "prenom", "telephone",
+            "date_naissance", "adresse", "ville", "pays", "statut"
+        ]
+
+    def create(self, validated_data):
+        org = self.context["organisation"]
+
+        return Utilisateur.objects.create_user(
+            role="gestionnaire",
+            organisation=org,
+            statut=validated_data.get("statut", "actif"),
+            **validated_data
+        )
+
+
+# ==============================
+# Staff
+# ==============================
+class StaffCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Utilisateur
+        fields = [
+            "email", "nom", "prenom", "telephone",
+            "date_naissance", "adresse", "ville", "pays", "statut"
+        ]
+
+    def create(self, validated_data):
+        org = self.context["organisation"]
+
+        return Utilisateur.objects.create_user(
+            role="staff",
+            organisation=org,
+            statut=validated_data.get("statut", "actif"),
+            **validated_data
+        )

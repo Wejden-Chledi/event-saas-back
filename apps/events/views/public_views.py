@@ -1,29 +1,15 @@
 # apps/events/views/public_views.py
-
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from apps.events.models import Evenement
+from apps.events.serializers import EvenementSerializer
 
 @api_view(["GET"])
 def public_events(request):
     """
-    Retourne la liste des événements publics
+    Retourne la liste des événements publics (statut = 'publie') avec détails utiles.
     """
-    events = Evenement.objects.filter(statut="publie")
+    events = Evenement.objects.filter(statut="publie").order_by("date_debut")
+    serializer = EvenementSerializer(events, many=True)
 
-    data = [
-        {
-            "id": e.id,
-            "titre": e.titre,
-            "description": e.description,
-            "lieu": e.lieu,
-            "date_debut": e.date_debut.isoformat(),  # convertir en string ISO
-            "date_fin": e.date_fin.isoformat(),
-            "capaciteMax": e.capacite_max,
-            "prix": float(e.prix),
-            "statut": e.statut,
-        }
-        for e in events
-    ]
-
-    return Response(data)
+    return Response(serializer.data)
