@@ -4,13 +4,14 @@ from .models import Inscription, Billet
 from apps.payments.models import Paiement
 
 # ================================
-# INSCRIPTION
+# INSCRIPTION (Lecture)
 # ================================
 class InscriptionSerializer(serializers.ModelSerializer):
     participant_nom = serializers.CharField(source="participant.nom", read_only=True)
     participant_prenom = serializers.CharField(source="participant.prenom", read_only=True)
     evenement_titre = serializers.CharField(source="evenement.titre", read_only=True)
     evenement_prix = serializers.DecimalField(source="evenement.prix", max_digits=10, decimal_places=2, read_only=True)
+    statut_paiement = serializers.CharField(source="paiement.statut", read_only=True)
 
     class Meta:
         model = Inscription
@@ -19,7 +20,7 @@ class InscriptionSerializer(serializers.ModelSerializer):
             "participant",
             "evenement",
             "date_inscription",
-            "statut",
+            "statut_paiement",
             "montant_paye",
             "reference_paiement",
             "paiement",
@@ -28,12 +29,7 @@ class InscriptionSerializer(serializers.ModelSerializer):
             "evenement_titre",
             "evenement_prix",
         ]
-        read_only_fields = [
-            "date_inscription",
-            "reference_paiement",
-            "montant_paye",
-            "statut",
-        ]
+        read_only_fields = ["date_inscription", "reference_paiement", "montant_paye"]
 
 # ================================
 # INSCRIPTION CREATE
@@ -47,60 +43,41 @@ class InscriptionCreateSerializer(serializers.ModelSerializer):
         user = self.context["request"].user
         evenement = validated_data["evenement"]
 
-        # Vérification places disponibles
-        if evenement.places_disponibles() <= 0:
-            raise serializers.ValidationError("Événement complet")
+        if hasattr(evenement, 'places_disponibles') and evenement.places_disponibles() <= 0:
+            raise serializers.ValidationError({"detail": "Événement complet"})
 
-        # Création de l'inscription
         inscription = Inscription.objects.create(
             participant=user,
             evenement=evenement,
             montant_paye=evenement.prix,
         )
-        inscription.generer_reference()
-        inscription.save()
-
-        # Création automatique du paiement
+        
+        if hasattr(inscription, 'generer_reference'):
+            inscription.generer_reference()
+        
+        # Création du paiement lié
         paiement = Paiement.objects.create(
             montant=evenement.prix,
             statut='en_attente',
             mode='stripe',
-            description=f"Paiement pour l'inscription {inscription.id}"
+            description=f"Paiement pour {evenement.titre}"
         )
+        
         inscription.paiement = paiement
         inscription.save()
-
         return inscription
 
 # ================================
 # BILLET
 # ================================
 class BilletSerializer(serializers.ModelSerializer):
-    evenement = serializers.CharField(source="inscription.evenement.titre", read_only=True)
-    participant = serializers.CharField(source="inscription.participant.email", read_only=True)
-    pdf_url = serializers.SerializerMethodField()
+    evenement_titre = serializers.CharField(source="inscription.evenement.titre", read_only=True)
+    date_evenement = serializers.DateTimeField(source="inscription.evenement.date_debut", read_only=True)
+    lieu = serializers.CharField(source="inscription.evenement.lieu", read_only=True)
 
     class Meta:
         model = Billet
         fields = [
-            "id",
-            "inscription",
-            "qr_code",
-            "pdf_url",
-            "date_emission",
-            "utilise",
-            "date_utilisation",
-            "evenement",
-            "participant",
+            "id", "inscription", "qr_code", "date_emission", 
+            "utilise", "evenement_titre", "date_evenement", "lieu"
         ]
-        read_only_fields = [
-            "qr_code",
-            "date_emission",
-            "date_utilisation",
-            "pdf_url",
-        ]
-
-    def get_pdf_url(self, obj):
-        if hasattr(obj, 'pdf_file') and obj.pdf_file:
-            return obj.pdf_file.url
-        return None

@@ -16,7 +16,8 @@ class PaiementSerializer(serializers.ModelSerializer):
             "description",
         ]
         read_only_fields = [
-            "statut",          
+            "id",
+            "statut",           
             "date_paiement",   
             "reference_transaction",
         ]

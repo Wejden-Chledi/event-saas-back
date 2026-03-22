@@ -1,6 +1,9 @@
+# apps/users/serializers.py
 from rest_framework import serializers
 from django.utils import timezone
 from datetime import timedelta
+
+from apps.events.models import AssignationEvenement
 from .models import Utilisateur
 from apps.organisations.models import Organisation, Abonnement
 
@@ -8,17 +11,31 @@ from apps.organisations.models import Organisation, Abonnement
 # ==============================
 # Serializer simple utilisateur
 # ==============================
+
 class UserSerializer(serializers.ModelSerializer):
+    # On ajoute ce champ pour que React le reçoive
+    evenements_assignes = serializers.SerializerMethodField()
+
     class Meta:
         model = Utilisateur
         fields = [
             "id", "email", "nom", "prenom", "role", "statut",
             "date_inscription", "telephone", "date_naissance",
             "adresse", "ville", "pays", "organisation",
+            "evenements_assignes", # N'oublie pas de l'ajouter ici
         ]
         read_only_fields = ["id", "date_inscription", "role", "organisation"]
 
-
+    def get_evenements_assignes(self, obj):
+        # On va chercher toutes les assignations de ce staff
+        assignations = AssignationEvenement.objects.filter(staff=obj)
+        # On renvoie une liste simple avec les infos de l'événement
+        return [
+            {
+                "id": a.evenement.id,
+                "titre": a.evenement.titre
+            } for a in assignations
+        ]
 # ==============================
 # Proprietaire + Organisation + Abonnement
 # ==============================
@@ -186,23 +203,33 @@ class ParticipantRegisterSerializer(serializers.ModelSerializer):
 # ==============================
 class GestionnaireCreateSerializer(serializers.ModelSerializer):
 
+    password = serializers.CharField(write_only=True, required=True, min_length=6)
+
     class Meta:
         model = Utilisateur
         fields = [
             "email", "nom", "prenom", "telephone",
-            "date_naissance", "adresse", "ville", "pays", "statut"
+            "date_naissance", "adresse", "ville", "pays",
+            "statut", "password"
         ]
 
     def create(self, validated_data):
         org = self.context["organisation"]
 
-        return Utilisateur.objects.create_user(
+        # 🔥 EXTRACTION PROPRE
+        password = validated_data.pop("password")
+        statut = validated_data.pop("statut", "actif")
+
+        # 🔥 CRÉATION USER
+        user = Utilisateur.objects.create_user(
             role="gestionnaire",
             organisation=org,
-            statut=validated_data.get("statut", "actif"),
+            statut=statut,
+            password=password,
             **validated_data
         )
 
+        return user
 
 # ==============================
 # Staff

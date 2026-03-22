@@ -1,13 +1,25 @@
-# apps/organisations/views/abonnement_views.py
-
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework import status
-from apps.organisations.models import Organisation, Abonnement
+from apps.organisations.models import Organisation
 from apps.organisations.serializers import AbonnementSerializer
 from apps.users.permissions import IsProprietaire
 from rest_framework.permissions import IsAuthenticated
+from datetime import datetime, timedelta
 
+# Durée et prix par plan
+duree_map = {
+    "gratuit": 30,
+    "basique": 30,
+    "pro": 90,
+    "premium": 365
+}
+
+PLAN_PRICES = {
+    "gratuit": 0,
+    "basique": 50,
+    "pro": 140,
+    "premium": 500
+}
 
 # ==============================
 # UPDATE ABONNEMENT
@@ -29,9 +41,25 @@ def update_abonnement_view(request):
 
     data = request.data
 
-    for field in ["plan", "date_fin", "statut"]:
-        if field in data:
-            setattr(abonnement, field, data[field])
+    if "plan" in data:
+        plan = data["plan"]
+        abonnement.plan = plan
+        abonnement.montant = PLAN_PRICES.get(plan, 0)
+
+        # ⚡ Corrigé : date_debut si vide, et date_fin calculée avec durée du plan
+        if not abonnement.date_debut:
+            abonnement.date_debut = datetime.now().date()
+        abonnement.date_fin = abonnement.date_debut + timedelta(days=duree_map.get(plan, 30))
+
+    if "statut" in data:
+        abonnement.statut = data["statut"]
+
+    if "date_fin" in data:
+        try:
+            # Accepter seulement la date (YYYY-MM-DD)
+            abonnement.date_fin = datetime.fromisoformat(data["date_fin"]).date()
+        except ValueError:
+            pass  # ignore format invalide
 
     abonnement.save()
 

@@ -1,10 +1,13 @@
 # apps/users/views/proprietaire_views.py
 from rest_framework.decorators import api_view
+from rest_framework.permissions import AllowAny
+from rest_framework.decorators import permission_classes
 from rest_framework import status
 from rest_framework.response import Response
 from apps.users.serializers import ProprietaireRegisterSerializer, UserSerializer
 
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def register_proprietaire_view(request):
     serializer = ProprietaireRegisterSerializer(data=request.data)
     if serializer.is_valid():
