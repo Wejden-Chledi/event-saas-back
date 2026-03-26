@@ -1,45 +1,28 @@
 # apps/users/urls.py
-from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
-from .views import *
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views.auth_views import CustomTokenObtainPairView, logout_view
+from .views.profile_views import profile_view, update_user_view
+from .views.management_views import GestionnaireViewSet, StaffViewSet
+from .views.proprietaire_views import register_proprietaire_view
+from .views.participant_views import register_participant_view
+
+# Le router génère automatiquement les URLs : list, create, retrieve, update, delete
+router = DefaultRouter()
+router.register(r'gestionnaire', GestionnaireViewSet, basename='gestionnaire')
+router.register(r'staff', StaffViewSet, basename='staff')
 
 urlpatterns = [
-    # ---------------------
-    # Auth
-    # ---------------------
+    # Auth & Inscriptions
     path("auth/login/", CustomTokenObtainPairView.as_view(), name="login"),
-    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("auth/logout/", logout_view, name="logout"),
+    path("proprietaire/register/", register_proprietaire_view),
+    path("participant/register/", register_participant_view),
 
-    # ---------------------
     # Profil
-    # ---------------------
-    path("profile/", profile_view, name="profile"),
-    path("profile/update/", update_user_view, name="update_profile"),
+    path("profile/", profile_view),
+    path("profile/update/", update_user_view),
 
-    # ---------------------
-    # Proprietaire
-    # ---------------------
-    path("proprietaire/register/", register_proprietaire_view, name="register_proprietaire"),
-
-    # ---------------------
-    # Participant
-    # ---------------------
-    path("participant/register/", register_participant_view, name="register_participant"),
-
-    # ---------------------
-    # Gestionnaire (CRUD)
-    # ---------------------
-    path("gestionnaire/create/", create_gestionnaire_view, name="create_gestionnaire"),
-    path("gestionnaire/list/", list_gestionnaires_view, name="list_gestionnaires"),
-    path("gestionnaire/<int:gestionnaire_id>/update/", update_gestionnaire_view, name="update_gestionnaire"),
-    path("gestionnaire/<int:gestionnaire_id>/delete/", delete_gestionnaire_view, name="delete_gestionnaire"),
-
-    # ---------------------
-    # Staff (CRUD)
-    # ---------------------
-    path("staff/create/", create_staff_view, name="create_staff"),
-    path("staff/list/", list_staff_view, name="list_staff"),
-    path("staff/<int:staff_id>/update/", update_staff_view, name="update_staff"),
-    path("staff/<int:staff_id>/delete/", delete_staff_view, name="delete_staff"),
+    # Inclusion des routes automatiques
+    path("", include(router.urls)),
 ]

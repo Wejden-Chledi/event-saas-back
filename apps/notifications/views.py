@@ -5,59 +5,35 @@ from rest_framework.views import APIView
 from .models import Notification
 from .serializers import NotificationSerializer
 
-
-# ================================
-# Créer une notification
-# ================================
-class NotificationCreateView(generics.CreateAPIView):
-    """
-    Permet de créer une notification (email, SMS, push).
-    """
-    queryset = Notification.objects.all()
-    serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-
-# ================================
-# Lister les notifications
-# ================================
 class NotificationListView(generics.ListAPIView):
-    """
-    Affiche toutes les notifications de l'utilisateur connecté.
-    """
+    """Lister les notifications de l'utilisateur connecté"""
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return Notification.objects.filter(destinataire=self.request.user).order_by('-date_creation')
 
-
-# ================================
-# Détails d'une notification
-# ================================
 class NotificationDetailView(generics.RetrieveAPIView):
-    """
-    Récupère le détail d'une notification spécifique.
-    """
-    queryset = Notification.objects.all()
+    """Détail d'une notification (doit appartenir à l'utilisateur)"""
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
-    lookup_field = "id"
+    
+    def get_queryset(self):
+        return Notification.objects.filter(destinataire=self.request.user)
 
-
-# ================================
-# Envoyer une notification
-# ================================
 class NotificationSendView(APIView):
-    """
-    Déclenche l'envoi réel de la notification (simulation ou réel via SMTP/Push/SMS).
-    """
+    """Déclencher l'envoi manuel"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, id):
+    def post(self, request, pk):
         try:
-            notification = Notification.objects.get(id=id)
-            notification.envoyer()  # appelle la méthode envoyer() du modèle
-            return Response({"detail": "Notification envoyée"}, status=status.HTTP_200_OK)
+            # Sécurité : on ne peut envoyer que ses propres notifications
+            notification = Notification.objects.get(pk=pk, destinataire=request.user)
+            success = notification.envoyer()
+            
+            if success:
+                return Response({"detail": "Notification envoyée avec succès"})
+            return Response({"detail": "L'envoi a échoué"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
         except Notification.DoesNotExist:
             return Response({"detail": "Notification non trouvée"}, status=status.HTTP_404_NOT_FOUND)

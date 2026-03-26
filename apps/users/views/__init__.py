@@ -12,18 +12,10 @@ from .proprietaire_views import register_proprietaire_view
 # Participant
 from .participant_views import register_participant_view
 
-# Gestionnaire
-from .gestionnaire_views import (
-    create_gestionnaire_view,
-    list_gestionnaires_view,
-    update_gestionnaire_view,
-    delete_gestionnaire_view
+# management(staff+gestionnaire)
+from .management_views import (
+    BaseUserViewSet,
+    GestionnaireViewSet,
+    StaffViewSet
 )
 
-# Staff
-from .staff_views import (
-    create_staff_view,
-    list_staff_view,
-    update_staff_view,
-    delete_staff_view
-)

@@ -16,6 +16,11 @@ from reportlab.lib.utils import ImageReader
 from .models import Inscription, Billet
 from .serializers import InscriptionSerializer, InscriptionCreateSerializer, BilletSerializer
 from apps.payments.models import Paiement
+import stripe
+from django.conf import settings
+
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # =====================================================
 # INSCRIPTIONS
@@ -36,10 +41,15 @@ class ParticipantInscriptionsListView(generics.ListAPIView):
         ).order_by('-date_inscription')
 
 class InscriptionDetailView(generics.RetrieveAPIView):
-    queryset = Inscription.objects.all()
     serializer_class = InscriptionSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = "id"
+
+    def get_queryset(self):
+        # Un utilisateur ne peut voir que ses propres inscriptions
+        return Inscription.objects.filter(participant=self.request.user)
+
+
 
 class InscriptionCancelView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -47,14 +57,30 @@ class InscriptionCancelView(APIView):
     def post(self, request, id):
         try:
             inscription = Inscription.objects.get(id=id, participant=request.user)
-            inscription.statut = "annule"
-            inscription.save()
-            if hasattr(inscription, 'paiement') and inscription.paiement:
-                inscription.paiement.annuler()
-            return Response({"detail": "Inscription annulée"}, status=status.HTTP_200_OK)
+            
+            # CAS 1 : Inscription PAYÉE -> REMBOURSEMENT STRIPE + SUPPRESSION
+            if inscription.statut == "paye":
+                if inscription.paiement and inscription.paiement.external_id:
+                    try:
+                        # Déclencher le remboursement réel sur Stripe
+                        stripe.Refund.create(payment_intent=inscription.paiement.external_id)
+                    except stripe.error.StripeError as e:
+                        return Response({"detail": f"Erreur Stripe: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Une fois le remboursement lancé, on supprime l'inscription 
+                # pour permettre une réinscription immédiate.
+                inscription.delete() 
+                return Response({"detail": "Remboursement effectué et inscription libérée."}, status=status.HTTP_200_OK)
+
+            # CAS 2 : Inscription EN ATTENTE -> SUPPRESSION SIMPLE
+            else:
+                # On supprime l'objet de la base de données
+                # Cela réinitialise le validateur "exists()" du Serializer
+                inscription.delete()
+                return Response({"detail": "Inscription annulée et supprimée."}, status=status.HTTP_200_OK)
+
         except Inscription.DoesNotExist:
             return Response({"detail": "Inscription non trouvée"}, status=status.HTTP_404_NOT_FOUND)
-
 # =====================================================
 # BILLETS
 # =====================================================
@@ -64,7 +90,11 @@ class BilletListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Billet.objects.filter(inscription__participant=self.request.user)
+        # On ne liste que les billets dont l'inscription est payée ou utilisée
+        return Billet.objects.filter(
+            inscription__participant=self.request.user,
+            inscription__statut__in=['paye', 'utilise']
+        )
 
 class BilletDetailView(generics.RetrieveAPIView):
     serializer_class = BilletSerializer
@@ -72,17 +102,19 @@ class BilletDetailView(generics.RetrieveAPIView):
     lookup_field = "id"
 
     def get_queryset(self):
-        return Billet.objects.filter(inscription__participant=self.request.user)
+        return Billet.objects.filter(
+            inscription__participant=self.request.user,
+            inscription__statut__in=['paye', 'utilise']
+        )
 
     def get_object(self):
         queryset = self.get_queryset()
-        # On cherche par l'ID du billet OU par l'ID de l'inscription liée
         obj = queryset.filter(
             Q(id=self.kwargs['id']) | Q(inscription__id=self.kwargs['id'])
         ).first()
         
         if not obj:
-            raise Http404("Billet non trouvé.")
+            raise Http404("Billet non trouvé ou non encore disponible (paiement requis).")
         return obj
 
 # =====================================================
@@ -93,13 +125,17 @@ class BilletPDFView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, id):
-        # 1. Recherche sécurisée du billet
+        # 1. Recherche sécurisée : il faut que l'inscription soit PAYÉE pour avoir le PDF
         billet = Billet.objects.filter(
-            inscription__participant=request.user
+            inscription__participant=request.user,
+            inscription__statut__in=['paye', 'utilise']
         ).filter(Q(id=id) | Q(inscription__id=id)).first()
 
         if not billet:
-            return Response({"detail": "Billet non trouvé"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Billet non trouvé ou paiement non confirmé."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         # 2. Préparation du buffer PDF
         buffer = io.BytesIO()
@@ -121,8 +157,9 @@ class BilletPDFView(APIView):
         p.drawString(100, 700, f"Lieu : {lieu}")
 
         # --- GÉNÉRATION DU CODE QR ---
+        # On utilise l'ID du billet pour le scan à l'entrée
         qr = qrcode.QRCode(version=1, box_size=10, border=2)
-        qr.add_data(str(billet.id)) # On encode l'ID du billet
+        qr.add_data(str(billet.id)) 
         qr.make(fit=True)
         
         img_qr = qr.make_image(fill_color="black", back_color="white")
@@ -135,6 +172,10 @@ class BilletPDFView(APIView):
         
         p.setFont("Courier", 10)
         p.drawCentredString(300, 440, f"ID UNIQUE : {billet.id}")
+        
+        # Information de sécurité
+        p.setFont("Helvetica-Oblique", 8)
+        p.drawCentredString(300, 420, "Ce billet est unique. Présentez-le à l'entrée de l'événement.")
         
         # --- Finalisation ---
         p.showPage()

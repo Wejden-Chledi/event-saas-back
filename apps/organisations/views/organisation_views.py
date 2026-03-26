@@ -1,101 +1,87 @@
 # apps/organisations/views/organisation_views.py
-
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status
-from apps.organisations.models import Organisation
-from apps.organisations.serializers import (
-    OrganisationSerializer,
-    OrganisationCompleteSerializer,
+from rest_framework.permissions import IsAuthenticated
+from apps.users.permissions import IsProprietaire, IsGestionnaire
+from ..models import Organisation
+from ..serializers import (
+    OrganisationSerializer, 
+    OrganisationCompleteSerializer, 
     OrganisationCreateSerializer
 )
-from apps.users.permissions import IsProprietaire, IsGestionnaire
-from rest_framework.permissions import IsAuthenticated
 
+class OrganisationViewSet(viewsets.ModelViewSet):
+    # ✅ Autoriser Propriétaire OU Gestionnaire
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'me', 'stats']:
+            return [IsAuthenticated(), (IsProprietaire | IsGestionnaire)()]
+        return [IsAuthenticated(), IsProprietaire()]
 
-# ==============================
-# CREATE ORGANISATION (Owner)
-# ==============================
-@api_view(["POST"])
-@permission_classes([IsAuthenticated, IsProprietaire])
-def create_organisation_view(request):
-    user = request.user
+    def get_queryset(self):
+        user = self.request.user
+        # ✅ Le propriétaire voit l'organisation qu'il possède
+        if user.role == "proprietaire":
+            return Organisation.objects.filter(proprietaire=user)
+        # ✅ Le gestionnaire voit l'organisation à laquelle il est rattaché
+        if user.role == "gestionnaire" and hasattr(user, 'organisation_set'):
+             # Si c'est une ForeignKey sur Organisation
+             return Organisation.objects.filter(id=user.organisation_id)
+        
+        return Organisation.objects.none()
 
-    # Vérifier si déjà une organisation
-    if Organisation.objects.filter(proprietaire=user).exists():
-        return Response({"error": "Vous avez déjà une organisation"}, status=400)
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Action universelle pour récupérer SON organisation"""
+        # On cherche l'organisation rattachée (selon votre modèle User)
+        org = None
+        if hasattr(request.user, 'organisation') and request.user.organisation:
+            org = request.user.organisation
+        elif hasattr(request.user, 'organisation_managed'): # exemple si le nom est différent
+            org = request.user.organisation_managed
+            
+        if not org:
+            return Response({"error": "Aucune organisation trouvée"}, status=404)
+            
+        serializer = OrganisationCompleteSerializer(org)
+        return Response(serializer.data)
+    permission_classes = [IsAuthenticated, IsProprietaire]
 
-    serializer = OrganisationCreateSerializer(
-        data=request.data,
-        context={"proprietaire": user}
-    )
+    def get_queryset(self):
+        # Sécurité : Un propriétaire ne voit que SA propre organisation
+        return Organisation.objects.filter(proprietaire=self.request.user)
 
-    if serializer.is_valid():
-        organisation = serializer.save()
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return OrganisationCreateSerializer
+        if self.action in ['retrieve', 'me']:
+            return OrganisationCompleteSerializer
+        return OrganisationSerializer
 
-        return Response({
-            "message": "Organisation créée avec succès",
-            "organisation": OrganisationSerializer(organisation).data
-        }, status=status.HTTP_201_CREATED)
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Récupère l'organisation de l'utilisateur connecté : /api/organisations/me/"""
+        # Utilise l'attribut organisation lié à l'utilisateur (OneToOneField)
+        if not hasattr(request.user, 'organisation') or not request.user.organisation:
+            return Response({"error": "Aucune organisation trouvée"}, status=404)
+            
+        serializer = OrganisationCompleteSerializer(request.user.organisation)
+        return Response(serializer.data)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """Action pour les infos du dashboard : /api/organisations/stats/"""
+        if not hasattr(request.user, 'organisation') or not request.user.organisation:
+            return Response([], status=200) # On renvoie une liste vide au lieu d'une 404 pour le dashboard
+            
+        # Exemple de stats (à adapter selon vos modèles réels)
+        # Note : Pensez à importer vos modèles d'événements et de gestionnaires ici
+        data = [
+            {"label": "Événements", "value": 0, "color": "blue"},
+            {"label": "Gestionnaires", "value": 0, "color": "green"},
+            {"label": "Inscriptions", "value": 0, "color": "purple"},
+        ]
+        return Response(data, status=status.HTTP_200_OK)
 
-
-# ==============================
-# GET MY ORGANISATION
-# ==============================
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_my_organisation_view(request):
-
-    organisation = request.user.organisation
-
-    if not organisation:
-        return Response({"error": "Aucune organisation trouvée"}, status=404)
-
-    return Response(OrganisationCompleteSerializer(organisation).data)
-
-# ==============================
-# UPDATE ORGANISATION
-# ==============================
-@api_view(["PUT"])
-@permission_classes([IsAuthenticated, IsProprietaire])
-def update_organisation_view(request):
-    user = request.user
-
-    try:
-        organisation = Organisation.objects.get(proprietaire=user)
-    except Organisation.DoesNotExist:
-        return Response({"error": "Organisation non trouvée"}, status=404)
-
-    data = request.data
-
-    for field in [
-        "nom", "secteur", "description", "email_contact",
-        "telephone", "adresse", "ville", "pays", "site_web"
-    ]:
-        if field in data:
-            setattr(organisation, field, data[field])
-
-    organisation.save()
-
-    return Response({
-        "message": "Organisation mise à jour",
-        "organisation": OrganisationSerializer(organisation).data
-    })
-
-
-# ==============================
-# DELETE ORGANISATION
-# ==============================
-@api_view(["DELETE"])
-@permission_classes([IsAuthenticated, IsProprietaire])
-def delete_organisation_view(request):
-    user = request.user
-
-    try:
-        organisation = Organisation.objects.get(proprietaire=user)
-        organisation.delete()
-        return Response({"message": "Organisation supprimée"})
-    except Organisation.DoesNotExist:
-        return Response({"error": "Organisation non trouvée"}, status=404)
+    def perform_create(self, serializer):
+        serializer.save(proprietaire=self.request.user)

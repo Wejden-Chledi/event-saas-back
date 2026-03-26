@@ -4,23 +4,19 @@ from .views import (
     PaiementListView,
     PaiementDetailView,
     PaiementConfirmView,
-    PaiementCancelView,
-    PaiementFailView
+    PaiementStatusUpdateView,
+    CreatePaymentIntentView
 )
 
 urlpatterns = [
-    # Liste des paiements
     path('', PaiementListView.as_view(), name='paiement-list'),
-
-    # Détails d'un paiement
+    
+    # Route pour générer le clientSecret Stripe
+    path('create-intent/<uuid:inscription_id>/', CreatePaymentIntentView.as_view(), name='paiement-create-intent'),
+    
     path('<uuid:id>/', PaiementDetailView.as_view(), name='paiement-detail'),
-
-    # Confirmer un paiement
-    path('<uuid:id>/confirmer/', PaiementConfirmView.as_view(), name='paiement-confirmer'),
-
-    # Annuler un paiement
-    path('<uuid:id>/annuler/', PaiementCancelView.as_view(), name='paiement-annuler'),
-
-    # Marquer un paiement comme échoué
-    path('<uuid:id>/echouer/', PaiementFailView.as_view(), name='paiement-echouer'),
+    path('<uuid:pk>/confirmer/', PaiementConfirmView.as_view(), name='paiement-confirmer'),
+    
+    # Actions dynamiques (annuler, echouer, rembourser)
+    path('<uuid:pk>/<str:action>/', PaiementStatusUpdateView.as_view(), name='paiement-action'),
 ]

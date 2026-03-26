@@ -1,3 +1,4 @@
+# apps/users/permissions.py
 from rest_framework.permissions import BasePermission
 
 # Permissions par rôle + statut actif

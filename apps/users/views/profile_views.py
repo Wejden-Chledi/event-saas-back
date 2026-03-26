@@ -14,12 +14,18 @@ def profile_view(request):
 @permission_classes([IsAuthenticated])
 def update_user_view(request):
     user = request.user
-    data = request.data
-    for field in ["nom", "prenom", "email", "telephone", "date_naissance", "adresse", "ville", "pays"]:
-        if field in data:
-            setattr(user, field, data[field])
-    password = data.get("password")
-    if password:
-        user.set_password(password)
-    user.save()
-    return Response({"message": "Profil mis à jour", "user": UserSerializer(user).data})
+    serializer = UserSerializer(user, data=request.data, partial=True)
+    
+    if serializer.is_valid():
+        updated_user = serializer.save()
+        
+        password = request.data.get("password")
+        if password:
+            updated_user.set_password(password)
+            updated_user.save()
+            
+        return Response({
+            "message": "Profil mis à jour", 
+            "user": UserSerializer(updated_user).data # ✅ Retourne l'utilisateur ici
+        })
+    return Response(serializer.errors, status=400)

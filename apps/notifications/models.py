@@ -2,7 +2,11 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from django.conf import settings
+import logging
 
+logger = logging.getLogger(__name__)
 Utilisateur = get_user_model()
 
 class Notification(models.Model):
@@ -34,11 +38,22 @@ class Notification(models.Model):
         return f"{self.type_notification} -> {self.destinataire.email} [{self.statut}]"
 
     def envoyer(self):
-        try:
-            # ici tu peux mettre send_mail ou autre service
-            self.statut = 'envoye'
-            self.date_envoi = timezone.now()
+        """Logique d'envoi selon le type"""
+        if self.type_notification == 'email':
+            try:
+                send_mail(
+                    subject=self.sujet or "Notification EventSaaS",
+                    message=self.message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[self.destinataire.email],
+                    fail_silently=False,
+                )
+                self.statut = 'envoye'
+                self.date_envoi = timezone.now()
+            except Exception as e:
+                logger.error(f"Erreur envoi email notification {self.id}: {e}")
+                self.statut = 'echoue'
             self.save()
-        except Exception:
-            self.statut = 'echoue'
-            self.save()
+        
+        # Logique pour SMS ou Push à ajouter ici plus tard
+        return self.statut == 'envoye'

@@ -1,18 +1,18 @@
+# apps/events/ai_service.py
 import os
 from openai import AzureOpenAI
 
-# Client initialisé paresseusement pour éviter les erreurs au démarrage
 _client = None
 
 def get_openai_client():
-    """Initialiser et retourner le client Azure OpenAI de manière paresseuse"""
+    """Initialise le client Azure OpenAI paresseusement."""
     global _client
     if _client is None:
         api_key = os.getenv("AZURE_OPENAI_API_KEY")
         azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         
         if not api_key or not azure_endpoint:
-            raise ValueError("AZURE_OPENAI_API_KEY et AZURE_OPENAI_ENDPOINT doivent être définis dans les variables d'environnement")
+            raise ValueError("AZURE_OPENAI_API_KEY et AZURE_OPENAI_ENDPOINT doivent être définis")
         
         _client = AzureOpenAI(
             api_key=api_key,
@@ -21,20 +21,18 @@ def get_openai_client():
         )
     return _client
 
-def generate_event_description(title):
-    """
-    Génère une description professionnelle pour un événement en fonction de son titre
-    """
+def generate_event_description(prompt_text: str) -> str:
+    """Génère une description professionnelle d'événement via Azure OpenAI"""
     client = get_openai_client()
     
     response = client.chat.completions.create(
         model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
         messages=[
-            {"role": "system", "content": "Tu es un assistant qui génère des descriptions professionnelles d'événements. Sois concis, informatif et engageant."},
-            {"role": "user", "content": f"Créer une description pour un événement intitulé : {title}"}
+            {"role": "system", "content": "Tu es un assistant qui génère des descriptions d'événements professionnelles, complètes et engageantes."},
+            {"role": "user", "content": prompt_text}
         ],
         temperature=0.7,
-        max_tokens=300
+        max_tokens=400
     )
 
     return response.choices[0].message.content
