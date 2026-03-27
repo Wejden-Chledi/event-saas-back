@@ -41,7 +41,7 @@ stages:
     - task: AzureCLI@2
       displayName: Update Container App
       inputs:
-        azureSubscription: 'Azure subscription 1' 
+        azureSubscription: 'Azure subscription 1(1b6ca1a5-4833-492a-bb20-b1a8f34a9e50)' 
         scriptType: bash
         scriptLocation: inlineScript
         inlineScript: |
