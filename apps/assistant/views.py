@@ -14,3 +14,9 @@ class ChatbotView(APIView):
         reply = get_chatbot_reply(user_query, history)
         
         return Response({"reply": reply})
+
+        #Quels sont les événements prévus pour le mois prochain à Paris ?
+        #Est-ce que l'événement 'Conférence React' accepte les remboursements ?
+        #Où se déroule l'atelier de demain et à quelle heure commence-t-il ?
+        #Y a-t-il des tarifs réduits ou des événements gratuits en ce moment ?
+        #Je n'arrive pas à payer avec ma carte, quelles sont les étapes ?
