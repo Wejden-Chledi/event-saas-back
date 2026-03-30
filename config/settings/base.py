@@ -6,7 +6,6 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 # --- CHEMINS ---
-# BASE_DIR pointe vers la racine du projet (là où se trouve manage.py)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
 
@@ -14,8 +13,9 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-fallback-key")
 DEBUG = os.getenv("DJANGO_ENV") == "development"
 
-# Gestion dynamique des listes depuis le .env (séparées par des virgules)
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+# Correction technique : On nettoie les espaces et on s'assure que les domaines sont valides
+raw_allowed_hosts = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost")
+ALLOWED_HOSTS = [host.strip() for host in raw_allowed_hosts.split(",")]
 
 # --- CONFIGURATION STRIPE ---
 STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY')
@@ -23,12 +23,11 @@ STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
 stripe.api_key = STRIPE_SECRET_KEY
 
 # --- PARAMÈTRES DE SÉCURITÉ HTTPS ---
-# On n'active ces paramètres que si on n'est PAS en mode DEBUG (Production)
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 31536000  # 1 an
+    SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 else:
@@ -67,8 +66,8 @@ INSTALLED_APPS = [
 # --- MIDDLEWARE ---
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Gestion des fichiers statiques
-    "corsheaders.middleware.CorsMiddleware",        # DOIT ÊTRE AVANT CommonMiddleware
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # CRITIQUE : Toujours avant CommonMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -78,7 +77,7 @@ MIDDLEWARE = [
 ]
 
 # --- CORS CONFIGURATION ---
-# Permet de lire les origines depuis le .env, ex: CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+# Autorise les origines listées dans le .env
 cors_origins = os.getenv("CORS_ALLOWED_ORIGINS")
 if cors_origins:
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(",")]
@@ -86,6 +85,28 @@ else:
     CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Correction : Autoriser explicitement les méthodes pour éviter les erreurs "Preflight" sur Azure
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
 ROOT_URLCONF = "config.urls"
 
