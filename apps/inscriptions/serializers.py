@@ -99,3 +99,5 @@ class InscriptionCreateSerializer(serializers.ModelSerializer):
             )
             
         return inscription
+class CheckInSerializer(serializers.Serializer):
+       billet_id = serializers.UUIDField(help_text="L'ID unique du billet (UUID)")

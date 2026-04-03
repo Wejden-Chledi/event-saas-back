@@ -11,6 +11,8 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import extend_schema
+
 # Imports ReportLab pour le PDF
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -18,6 +20,7 @@ from reportlab.lib.utils import ImageReader
 
 from .models import Inscription, Billet
 from .serializers import InscriptionSerializer, InscriptionCreateSerializer, BilletSerializer
+from .serializers import CheckInSerializer
 from apps.users.permissions import IsStaff, IsGestionnaire
 from apps.events.models import AssignationEvenement
 from django.core.exceptions import ValidationError 
@@ -177,54 +180,63 @@ class BilletDetailView(APIView):
 
 
 class StaffBilletCheckInView(APIView):
+    serializer_class = CheckInSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(request=CheckInSerializer)
     def post(self, request):
-        billet_id = request.data.get("billet_id")
+        # 1. Utilise le sérialiseur pour valider l'entrée (ID format UUID)
+        serializer = CheckInSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        if not billet_id:
-            return Response({"error": "ID du billet manquant."}, status=400)
+        billet_id = serializer.validated_data.get("billet_id")
 
         try:
-            # 1. Récupération robuste
+            # 2. Récupération du billet avec jointures pour optimiser
             billet = Billet.objects.select_related(
-                'inscription__evenement', 
-                'inscription__participant',
-                'inscription__evenement__organisation'
+                'inscription__evenement__organisation',
+                'inscription__participant'
             ).get(id=billet_id)
             
             evenement = billet.inscription.evenement
+            participant = billet.inscription.participant
 
-            # 2. Vérification de l'organisation
-            # Utilisation de .pk pour éviter les problèmes si l'objet n'est pas chargé
-            staff_org_id = request.user.organisation.pk if request.user.organisation else None
-            event_org_id = evenement.organisation.pk if evenement.organisation else None
+            # 3. Logique de récupération du nom (Remplace get_full_name qui crash)
+            def safe_get_name(user_obj):
+                full_name = f"{getattr(user_obj, 'first_name', '')} {getattr(user_obj, 'last_name', '')}".strip()
+                return full_name if full_name else user_obj.email
 
-            if staff_org_id != event_org_id or staff_org_id is None:
-                return Response({
-                    "error": "Ce billet ne fait pas partie de votre organisation."
-                }, status=403)
+            # 4. Sécurité : Vérifier l'organisation du Staff
+            user_org = getattr(request.user, 'organisation', None)
+            if not user_org:
+                return Response({"error": "Votre compte staff n'est rattaché à aucune organisation."}, status=403)
+            
+            if not evenement.organisation:
+                return Response({"error": "Cet événement n'est rattaché à aucune organisation."}, status=403)
 
-            # 3. Vérification de l'assignation
+            # 5. Comparaison des organisations
+            if user_org.pk != evenement.organisation.pk:
+                return Response({"error": "Ce billet appartient à une autre organisation."}, status=403)
+
+            # 6. Vérification de l'assignation du staff à l'événement
             is_assigned = AssignationEvenement.objects.filter(
                 staff=request.user, 
                 evenement=evenement
             ).exists()
             
             if not is_assigned:
-                return Response({
-                    "error": "Vous n'êtes pas assigné à cet événement."
-                }, status=403)
+                return Response({"error": "Vous n'êtes pas assigné au contrôle de cet événement."}, status=403)
 
-            # 4. Vérification si déjà utilisé
+            # 7. Vérifier si le billet est déjà utilisé
             if billet.utilise:
-                date_str = billet.date_scan.strftime('%H:%M') if billet.date_scan else "inconnue"
                 return Response({
-                    "error": f"Alerte : Billet déjà utilisé à {date_str} !",
-                    "participant": billet.inscription.participant.get_full_name(),
+                    "error": "Alerte : Billet déjà utilisé !",
+                    "participant": safe_get_name(participant),
+                    "date": billet.date_scan.strftime('%H:%M') if billet.date_scan else "Inconnue"
                 }, status=400)
 
-            # 5. Validation atomique (Sauvegarde sécurisée)
+            # 8. Validation finale (Transaction atomique)
             with transaction.atomic():
                 billet.utilise = True
                 billet.date_scan = timezone.now()
@@ -238,17 +250,17 @@ class StaffBilletCheckInView(APIView):
             return Response({
                 "status": "success",
                 "message": "Entrée validée !",
-                "participant": inscription.participant.get_full_name()
+                "participant": safe_get_name(participant)
             }, status=200)
 
-        except (Billet.DoesNotExist, ValidationError, ValueError):
-            return Response({"error": "QR Code invalide ou billet inconnu."}, status=404)
+        except Billet.DoesNotExist:
+            return Response({"error": "QR Code invalide ou inconnu."}, status=404)
         except Exception as e:
-            # On log l'erreur pour Azure Log Stream
-            print(f"--- ERREUR CRITIQUE CHECK-IN ---")
-            print(f"User: {request.user.email} | Billet: {billet_id}")
-            print(f"Exception: {str(e)}")
-            return Response({"error": "Erreur interne du serveur."}, status=500)
+            # Log précis pour toi dans le terminal
+            import traceback
+            print(f"--- ERREUR CRITIQUE --- : {str(e)}")
+            traceback.print_exc()
+            return Response({"error": f"Erreur technique : {type(e).__name__}"}, status=500)
         
 
 class StaffEventParticipantsListView(generics.ListAPIView):
