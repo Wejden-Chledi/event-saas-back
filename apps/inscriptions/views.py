@@ -105,34 +105,50 @@ class BilletPDFView(APIView):
         if not billet:
             return Response({"detail": "Billet introuvable."}, status=status.HTTP_404_NOT_FOUND)
 
-        buffer = io.BytesIO()
-        p = canvas.Canvas(buffer, pagesize=A4)
-        
-        # --- Design simple ---
-        p.setFont("Helvetica-Bold", 18)
-        p.drawString(100, 770, f"BILLET : {billet.inscription.evenement.titre}")
-        p.setFont("Helvetica", 12)
-        p.drawString(100, 740, f"Participant : {billet.inscription.participant.get_full_name()}")
-        p.drawString(100, 720, f"Date : {billet.inscription.evenement.date_debut.strftime('%d/%m/%Y %H:%M')}")
-        p.drawString(100, 700, f"Lieu : {billet.inscription.evenement.lieu}")
+        try:
+            buffer = io.BytesIO()
+            p = canvas.Canvas(buffer, pagesize=A4)
+            
+            # --- Sécurité pour le nom ---
+            participant = billet.inscription.participant
+            nom_complet = f"{participant.first_name} {participant.last_name}" if hasattr(participant, 'first_name') else participant.email
 
-        # --- QR Code ---
-        qr = qrcode.QRCode(version=1, box_size=10, border=2)
-        qr.add_data(str(billet.id)) 
-        qr.make(fit=True)
-        img_qr = qr.make_image(fill_color="black", back_color="white")
-        qr_buffer = io.BytesIO()
-        img_qr.save(qr_buffer, format='PNG')
-        qr_buffer.seek(0)
-        
-        p.drawImage(ImageReader(qr_buffer), 225, 450, width=150, height=150)
-        p.drawCentredString(300, 440, f"ID UNIQUE : {billet.id}")
-        
-        p.showPage()
-        p.save()
-        buffer.seek(0)
-        return FileResponse(buffer, as_attachment=True, filename=f"billet_{billet.id}.pdf")
-    
+            # --- Sécurité pour la date ---
+            evenement = billet.inscription.evenement
+            date_str = evenement.date_debut.strftime('%d/%m/%Y %H:%M') if evenement.date_debut else "Date non définie"
+
+            # --- Design du PDF ---
+            p.setFont("Helvetica-Bold", 18)
+            p.drawString(100, 770, f"BILLET : {evenement.titre}")
+            
+            p.setFont("Helvetica", 12)
+            p.drawString(100, 740, f"Participant : {nom_complet}")
+            p.drawString(100, 720, f"Date : {date_str}")
+            p.drawString(100, 700, f"Lieu : {evenement.lieu or 'Non spécifié'}")
+
+            # --- QR Code ---
+            qr = qrcode.QRCode(version=1, box_size=10, border=2)
+            qr.add_data(str(billet.id)) 
+            qr.make(fit=True)
+            img_qr = qr.make_image(fill_color="black", back_color="white")
+            
+            qr_buffer = io.BytesIO()
+            img_qr.save(qr_buffer, format='PNG')
+            qr_buffer.seek(0)
+            
+            p.drawImage(ImageReader(qr_buffer), 225, 450, width=150, height=150)
+            p.drawCentredString(300, 440, f"ID UNIQUE : {billet.id}")
+            
+            p.showPage()
+            p.save()
+            
+            buffer.seek(0)
+            return FileResponse(buffer, as_attachment=True, filename=f"billet_{billet.id}.pdf")
+
+        except Exception as e:
+            # Si ça plante, on print l'erreur exacte dans les logs Azure
+            print(f"ERREUR GENERATION PDF: {str(e)}")
+            return Response({"detail": f"Erreur lors de la création du PDF: {str(e)}"}, status=500)
 
 class BilletDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
