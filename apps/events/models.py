@@ -54,12 +54,12 @@ class Evenement(models.Model):
     # ======== Méthodes utilitaires ========
 
     def places_disponibles(self):
-        """Retourne le nombre de places encore disponibles (inscriptions payées)."""
-        total = self.inscriptions.filter(statut="paye").count()
+        """Compte les payés ET ceux déjà présents (utilisés)."""
+        # On inclut 'utilise' pour ne pas libérer des places après le scan
+        total = self.inscriptions.filter(statut__in=["paye", "utilise"]).count()
         return max(0, self.capacite_max - total)
 
     def est_complet(self):
-        """Vérifie si l'événement est complet."""
         return self.places_disponibles() <= 0
 
     def publier(self):

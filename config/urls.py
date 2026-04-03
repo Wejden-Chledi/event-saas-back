@@ -3,6 +3,8 @@ from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.http import JsonResponse
+from django.conf import settings
+from django.conf.urls.static import static
 
 # Endpoint health pour Azure probes
 def health(request):
@@ -16,6 +18,7 @@ urlpatterns = [
     path("api/users/", include("apps.users.urls")),
     path("api/organisations/", include("apps.organisations.urls")),
     path("api/events/", include("apps.events.urls")),
+    path("api/staff/", include("apps.events.staff_urls")),
     path("api/inscriptions/", include("apps.inscriptions.urls")),
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/payments/", include("apps.payments.urls")),
@@ -30,3 +33,5 @@ urlpatterns = [
     # Health check pour Azure
     path('health/', health),
 ]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

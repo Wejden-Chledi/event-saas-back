@@ -10,14 +10,20 @@ from .serializers import EvenementSerializer
 from .data_prep_service import EventDataPreparer
 from .ai_service import generate_event_description
 
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+
+
 class EvenementViewSet(viewsets.ModelViewSet):
     queryset = Evenement.objects.all()
     serializer_class = EvenementSerializer
+    
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
         return [IsAuthenticated(), IsGestionnaire()]
+
 
     def get_queryset(self):
         user = self.request.user
@@ -60,3 +66,16 @@ class EvenementViewSet(viewsets.ModelViewSet):
             return Response({"description": description}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class StaffAssignedEventsView(generics.ListAPIView):
+    serializer_class = EvenementSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Evenement.objects.filter(
+            staff_assignes__staff=user,
+            statut="publie"
+        ).distinct()
