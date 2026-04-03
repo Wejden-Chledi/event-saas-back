@@ -1,6 +1,8 @@
+# apps/inscriptions/urls.py
 from django.urls import path
 from .views import (
     # Vues Participants
+    BilletDetailView,
     InscriptionCreateView,
     ParticipantInscriptionsListView,
     InscriptionDetailView,
@@ -28,6 +30,8 @@ urlpatterns = [
 
     # Accès aux billets et téléchargement PDF
     path('billets/', BilletListView.as_view(), name='billet-list'),
+
+    path('billets/<uuid:id>/', BilletDetailView.as_view(), name='billet-detail'),
     
     # Note : BilletDetailView est retirée car non définie dans tes vues actuelles.
     # On privilégie le PDF ou la liste globale.

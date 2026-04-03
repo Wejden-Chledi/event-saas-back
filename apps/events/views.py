@@ -12,6 +12,9 @@ from .ai_service import generate_event_description
 
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from apps.users.permissions import IsStaff
+
+
 
 
 class EvenementViewSet(viewsets.ModelViewSet):
@@ -71,11 +74,13 @@ class EvenementViewSet(viewsets.ModelViewSet):
 
 class StaffAssignedEventsView(generics.ListAPIView):
     serializer_class = EvenementSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsStaff]
 
     def get_queryset(self):
-        user = self.request.user
-        return Evenement.objects.filter(
-            staff_assignes__staff=user,
-            statut="publie"
-        ).distinct()
+     user = self.request.user
+     return Evenement.objects.filter(
+        staff_assignes__staff=user,
+        statut="publie"
+    ).select_related("organisation", "createur") \
+     .prefetch_related("photos") \
+     .distinct()

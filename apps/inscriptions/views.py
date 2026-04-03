@@ -132,6 +132,18 @@ class BilletPDFView(APIView):
         p.save()
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True, filename=f"billet_{billet.id}.pdf")
+    
+class BilletDetailView(generics.RetrieveAPIView):
+    serializer_class = BilletSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        # On ne montre le billet que s'il est payé ou déjà utilisé
+        return Billet.objects.filter(
+            inscription__participant=self.request.user,
+            inscription__statut__in=['paye', 'utilise']
+        )
 
 # =====================================================
 # LOGIQUE STAFF & CHECK-IN
