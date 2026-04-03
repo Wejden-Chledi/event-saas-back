@@ -133,17 +133,24 @@ class BilletPDFView(APIView):
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True, filename=f"billet_{billet.id}.pdf")
     
-class BilletDetailView(generics.RetrieveAPIView):
-    serializer_class = BilletSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    lookup_field = "id"
 
-    def get_queryset(self):
-        # On ne montre le billet que s'il est payé ou déjà utilisé
-        return Billet.objects.filter(
-            inscription__participant=self.request.user,
-            inscription__statut__in=['paye', 'utilise']
-        )
+class BilletDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, id):
+        billet = Billet.objects.filter(
+            Q(id=id) | Q(inscription__id=id)
+        ).select_related('inscription', 'inscription__participant', 'inscription__evenement').first()
+
+        if not billet:
+            return Response({"detail": "Billet introuvable."}, status=404)
+
+        if billet.inscription.participant != request.user:
+            return Response({"detail": "Accès refusé."}, status=403)
+
+        # IMPORTANT : Ajoute context={'request': request} ici
+        serializer = BilletSerializer(billet, context={'request': request})
+        return Response(serializer.data)
 
 # =====================================================
 # LOGIQUE STAFF & CHECK-IN
