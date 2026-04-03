@@ -236,22 +236,37 @@ class GestionnaireCreateSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 # ==============================
-# Staff
+# Staff 
 # ==============================
 class StaffCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False, min_length=6, allow_blank=True)
+
     class Meta:
         model = Utilisateur
         fields = [
             "id", "email", "nom", "prenom", "telephone",
-            "date_naissance", "adresse", "ville", "pays", "statut"
+            "date_naissance", "adresse", "ville", "pays", "statut", "password"
         ]
 
     def create(self, validated_data):
         org = validated_data.pop("organisation", self.context.get("organisation"))
-        
+        password = validated_data.pop("password", None)
+
+        if not org:
+            raise serializers.ValidationError({"organisation": "Organisation requise"})
+
         return Utilisateur.objects.create_user(
             role="staff",
             organisation=org,
             statut=validated_data.get("statut", "actif"),
+            password=password,  # ✅ TRÈS IMPORTANT
             **validated_data
         )
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+
+        if password and password != "********":
+            instance.set_password(password)
+
+        return super().update(instance, validated_data)

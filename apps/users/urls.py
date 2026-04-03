@@ -6,6 +6,7 @@ from .views.profile_views import profile_view, update_user_view
 from .views.management_views import GestionnaireViewSet, StaffViewSet
 from .views.proprietaire_views import register_proprietaire_view
 from .views.participant_views import register_participant_view
+from rest_framework_simplejwt.views import TokenRefreshView
 
 # Le router génère automatiquement les URLs : list, create, retrieve, update, delete
 router = DefaultRouter()
@@ -25,4 +26,6 @@ urlpatterns = [
 
     # Inclusion des routes automatiques
     path("", include(router.urls)),
+    path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
 ]
