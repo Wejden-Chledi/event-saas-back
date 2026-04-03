@@ -6,6 +6,7 @@ from django.conf import settings
 from django.http import Http404, FileResponse
 from django.db.models import Q
 from django.utils import timezone
+from django.db import transaction
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,6 +20,7 @@ from .models import Inscription, Billet
 from .serializers import InscriptionSerializer, InscriptionCreateSerializer, BilletSerializer
 from apps.users.permissions import IsStaff, IsGestionnaire
 from apps.events.models import AssignationEvenement
+from django.core.exceptions import ValidationError 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -172,34 +174,38 @@ class BilletDetailView(APIView):
 # LOGIQUE STAFF & CHECK-IN
 # =====================================================
 
+
+
 class StaffBilletCheckInView(APIView):
-    """
-    Vue de validation : Seul le rôle 'staff' assigné peut scanner.
-    Le gestionnaire ne peut pas valider d'entrée.
-    """
-    # On garde IsStaff | IsGestionnaire pour que le gestionnaire puisse 
-    # potentiellement voir les stats, mais on bloque le POST (l'action de scan).
-    permission_classes = [permissions.IsAuthenticated, IsStaff] 
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         billet_id = request.data.get("billet_id")
         
+        if not billet_id:
+            return Response({"error": "ID du billet manquant."}, status=400)
+
         try:
+            # 1. Récupération robuste
             billet = Billet.objects.select_related(
                 'inscription__evenement', 
-                'inscription__participant'
+                'inscription__participant',
+                'inscription__evenement__organisation'
             ).get(id=billet_id)
             
             evenement = billet.inscription.evenement
 
-            # 1. VÉRIFICATION DU RÔLE (Strictement Staff)
-            if request.user.role != "staff":
+            # 2. Vérification de l'organisation
+            # Utilisation de .pk pour éviter les problèmes si l'objet n'est pas chargé
+            staff_org_id = request.user.organisation.pk if request.user.organisation else None
+            event_org_id = evenement.organisation.pk if evenement.organisation else None
+
+            if staff_org_id != event_org_id or staff_org_id is None:
                 return Response({
-                    "error": "Accès refusé. Seul le personnel de terrain (Staff) peut valider les entrées."
+                    "error": "Ce billet ne fait pas partie de votre organisation."
                 }, status=403)
 
-            # 2. VÉRIFICATION DE L'ASSIGNATION
-            # On vérifie que ce staff précis est bien prévu pour cet événement
+            # 3. Vérification de l'assignation
             is_assigned = AssignationEvenement.objects.filter(
                 staff=request.user, 
                 evenement=evenement
@@ -207,43 +213,44 @@ class StaffBilletCheckInView(APIView):
             
             if not is_assigned:
                 return Response({
-                    "error": "Vous n'êtes pas assigné au contrôle de cet événement."
+                    "error": "Vous n'êtes pas assigné à cet événement."
                 }, status=403)
 
-            # 3. SÉCURITÉ ORGANISATION (Pour éviter qu'un staff A scanne pour l'org B)
-            if request.user.organisation != evenement.organisation:
-                return Response({
-                    "error": "Ce billet ne fait pas partie de votre organisation."
-                }, status=403)
-
-            # --- LOGIQUE DE VALIDATION ---
+            # 4. Vérification si déjà utilisé
             if billet.utilise:
+                date_str = billet.date_scan.strftime('%H:%M') if billet.date_scan else "inconnue"
                 return Response({
-                    "error": "Alerte : Billet déjà utilisé !",
+                    "error": f"Alerte : Billet déjà utilisé à {date_str} !",
                     "participant": billet.inscription.participant.get_full_name(),
-                    "date_scan": billet.date_scan.strftime('%H:%M')
                 }, status=400)
 
-            if billet.inscription.statut != 'paye':
-                return Response({"error": "Erreur : Ce billet n'a pas été payé."}, status=400)
+            # 5. Validation atomique (Sauvegarde sécurisée)
+            with transaction.atomic():
+                billet.utilise = True
+                billet.date_scan = timezone.now()
+                billet.scanne_par = request.user
+                billet.save()
 
-            # Validation finale
-            billet.utilise = True
-            billet.date_scan = timezone.now()
-            billet.scanne_par = request.user
-            billet.save()
-
-            billet.inscription.statut = 'utilise'
-            billet.inscription.save()
+                inscription = billet.inscription
+                inscription.statut = 'utilise'
+                inscription.save()
 
             return Response({
                 "status": "success",
                 "message": "Entrée validée !",
-                "participant": billet.inscription.participant.get_full_name()
+                "participant": inscription.participant.get_full_name()
             }, status=200)
 
-        except (Billet.DoesNotExist, ValueError):
-            return Response({"error": "QR Code invalide."}, status=404)
+        except (Billet.DoesNotExist, ValidationError, ValueError):
+            return Response({"error": "QR Code invalide ou billet inconnu."}, status=404)
+        except Exception as e:
+            # On log l'erreur pour Azure Log Stream
+            print(f"--- ERREUR CRITIQUE CHECK-IN ---")
+            print(f"User: {request.user.email} | Billet: {billet_id}")
+            print(f"Exception: {str(e)}")
+            return Response({"error": "Erreur interne du serveur."}, status=500)
+        
+
 class StaffEventParticipantsListView(generics.ListAPIView):
     """Liste des participants pour le staff (recherche manuelle)"""
     serializer_class = InscriptionSerializer
