@@ -12,7 +12,10 @@ from .views import (
     
     # Vues Staff
     StaffBilletCheckInView,
-    StaffEventParticipantsListView
+    EventParticipantsListView,
+    StaffEventParticipantsView
+    
+
 )
 
 urlpatterns = [
@@ -20,10 +23,10 @@ urlpatterns = [
     path('', ParticipantInscriptionsListView.as_view(), name='inscription-list'),
     path('create/', InscriptionCreateView.as_view(), name='inscription-create'),
     path('billets/', BilletListView.as_view(), name='billet-list'),
-    
+    path('event/<int:event_id>/participants/', StaffEventParticipantsView.as_view(), name='staff-event-participants'),
     # 2. ROUTES STAFF (Préfixées par staff/, donc pas de conflit)
     path('staff/check-in/', StaffBilletCheckInView.as_view(), name='staff-check-in'),
-    path('staff/participants-list/', StaffEventParticipantsListView.as_view(), name='staff-participants-list'),
+    path('participants-list/', EventParticipantsListView.as_view(), name='participants-list'),
 
     # 3. ROUTES BILLETS SPÉCIFIQUES
     # On les place AVANT <uuid:id>/ pour éviter que l'ID de l'inscription n'intercepte l'URL

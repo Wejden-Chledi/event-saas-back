@@ -25,6 +25,10 @@ from apps.users.permissions import IsStaff, IsGestionnaire
 from apps.events.models import AssignationEvenement
 from django.core.exceptions import ValidationError 
 
+from rest_framework.permissions import IsAuthenticated
+from .models import Inscription
+from .serializers import ParticipantDashboardSerializer
+
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # =====================================================
@@ -263,19 +267,43 @@ class StaffBilletCheckInView(APIView):
             return Response({"error": f"Erreur technique : {type(e).__name__}"}, status=500)
         
 
-class StaffEventParticipantsListView(generics.ListAPIView):
-    """Liste des participants pour le staff (recherche manuelle)"""
-    serializer_class = InscriptionSerializer
-    permission_classes = [permissions.IsAuthenticated, IsStaff | IsGestionnaire]
+# apps/inscriptions/views.py
 
-    def get_queryset(self):
-        event_id = self.request.query_params.get('event_id')
-        if not event_id:
-            return Inscription.objects.none()
-            
-        # On s'assure que le staff ne voit que les inscrits de SON organisation
-        return Inscription.objects.filter(
-            evenement_id=event_id,
-            evenement__organisation=self.request.user.organisation,
-            statut__in=['paye', 'utilise']
-        ).select_related('participant').order_by('participant__nom')
+class EventParticipantsListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        # On demande à Django : "Donne moi les inscriptions dont 
+        # l'événement a été créé par l'utilisateur connecté"
+        queryset = Inscription.objects.filter(
+            evenement__createur=user
+        ).distinct().order_by('-date_inscription')
+
+        # Si vous voulez aussi que le staff assigné voie les participants :
+        # queryset = Inscription.objects.filter(
+        #     Q(evenement__createur=user) | Q(evenement__staff_assignes__staff=user)
+        # ).distinct().order_by('-date_inscription')
+
+        event_id = request.query_params.get('event_id')
+        if event_id and event_id != "all":
+            queryset = queryset.filter(evenement_id=event_id)
+
+        serializer = ParticipantDashboardSerializer(queryset, many=True)
+        return Response(serializer.data)
+    
+
+
+
+class StaffEventParticipantsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, event_id):
+        # On ajoute 'billet' dans select_related pour charger les dates de scan d'un coup
+        queryset = Inscription.objects.filter(
+            evenement_id=event_id
+        ).select_related('participant', 'billet').order_by('participant__nom', 'participant__prenom')
+        
+        serializer = ParticipantDashboardSerializer(queryset, many=True)
+        return Response(serializer.data)

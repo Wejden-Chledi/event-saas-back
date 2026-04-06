@@ -3,6 +3,9 @@ from rest_framework import serializers
 from django.db import transaction
 from .models import Inscription, Billet
 from apps.payments.models import Paiement
+from rest_framework import serializers
+from .models import Inscription
+
 
 class BilletSerializer(serializers.ModelSerializer):
     """Serializer pour les détails du billet (utilisé par les participants et le staff)"""
@@ -101,3 +104,26 @@ class InscriptionCreateSerializer(serializers.ModelSerializer):
         return inscription
 class CheckInSerializer(serializers.Serializer):
        billet_id = serializers.UUIDField(help_text="L'ID unique du billet (UUID)")
+
+class ParticipantDashboardSerializer(serializers.ModelSerializer):
+    prenom = serializers.CharField(source='participant.prenom', read_only=True)
+    nom = serializers.CharField(source='participant.nom', read_only=True)
+    email = serializers.CharField(source='participant.email', read_only=True)
+    
+    # On va chercher l'heure du scan directement depuis le billet lié
+    checkin_time = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Inscription
+        fields = ['id', 'prenom', 'nom', 'email', 'checkin_time']
+
+    def get_checkin_time(self, obj):
+        # On vérifie si un billet existe pour cette inscription
+        # On utilise hasattr car c'est une relation OneToOne inversée
+        if hasattr(obj, 'billet') and obj.billet:
+            if obj.billet.utilise:
+                # On retourne la date du scan si le billet est utilisé
+                return obj.billet.date_scan
+        return None
+    
+    
