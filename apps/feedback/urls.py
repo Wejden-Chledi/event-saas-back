@@ -4,6 +4,11 @@ from rest_framework.routers import DefaultRouter
 from .views import FeedbackViewSet, RapportIAViewSet
 
 router = DefaultRouter()
+# Les endpoints seront :
+# - /api/feedback/avis/
+# - /api/feedback/avis/analyse_globale/
+# - /api/feedback/rapports-ia/
+# - /api/feedback/rapports-ia/{id}/generer/
 router.register(r'avis', FeedbackViewSet, basename='feedback')
 router.register(r'rapports-ia', RapportIAViewSet, basename='rapport-ia')
 
