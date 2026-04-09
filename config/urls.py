@@ -23,6 +23,7 @@ urlpatterns = [
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/payments/", include("apps.payments.urls")),
     path("api/assistant/", include("apps.assistant.urls")),
+    path("api/feedback/", include("apps.feedback.urls")),
 
 
     # Documentation

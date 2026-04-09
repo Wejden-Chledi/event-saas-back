@@ -72,6 +72,17 @@ class Evenement(models.Model):
         self.statut = "annule"
         self.save()
 
+    @property
+    def est_termine(self):
+        """Vérifie si l'événement est passé temporellement."""
+        return self.date_fin < timezone.now()
+
+    def get_statut_reel(self):
+        """Retourne le statut en tenant compte de la date."""
+        if self.statut == 'publie' and self.est_termine:
+            return 'termine'
+        return self.statut
+
 
 class AssignationEvenement(models.Model):
     """
