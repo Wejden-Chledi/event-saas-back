@@ -1,3 +1,4 @@
+# Dockerfile 
 FROM python:3.11-slim
 
 # Empêche Python de créer des fichiers .pyc et assure un log en temps réel
@@ -20,7 +21,12 @@ COPY . .
 
 # Rendre l'entrypoint exécutable
 COPY entrypoint.sh /entrypoint.sh
+COPY entrypoint.worker.sh /entrypoint.worker.sh
+COPY entrypoint.beat.sh /entrypoint.beat.sh
+
 RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.worker.sh
+RUN chmod +x /entrypoint.beat.sh
 
 EXPOSE 8000
 

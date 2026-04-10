@@ -1,3 +1,4 @@
+# entrypoint.sh
 #!/bin/sh
 
 echo "Attente de la base de données..."

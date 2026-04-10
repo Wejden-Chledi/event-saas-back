@@ -44,7 +44,20 @@ class StaffViewSet(BaseUserViewSet):
     permission_classes = [IsAuthenticated, IsGestionnaire]
 
     def get_queryset(self):
-        return super().get_queryset().filter(role="staff")
+        user = self.request.user
+        queryset = super().get_queryset().filter(role="staff")
+        
+        if user.role == "gestionnaire":
+            # Maintenant 'createur' est reconnu par Django !
+            return queryset.filter(createur=user)
+        return queryset
+
+    def perform_create(self, serializer):
+        # On injecte le créateur automatiquement à la création
+        serializer.save(
+            organisation=self.request.user.organisation,
+            createur=self.request.user
+        )
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:

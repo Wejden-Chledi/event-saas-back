@@ -46,7 +46,13 @@ class Utilisateur(AbstractBaseUser, PermissionsMixin):
         ("actif", "Actif"),
         ("inactif", "Inactif"),
     ]
-
+    createur = models.ForeignKey(
+            'self',
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+            related_name="utilisateurs_crees"
+        )
     # =========================
     # INFOS PERSONNELLES
     # =========================

@@ -30,10 +30,23 @@ class EvenementViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        
+        # 1. Utilisateurs non authentifiés : voient uniquement le public
         if not user.is_authenticated:
             return Evenement.objects.filter(statut="publie")
-        if user.role == "gestionnaire" and hasattr(user, 'organisation'):
+
+        # 2. Gestionnaires : voient uniquement leurs propres créations
+        if user.role == "gestionnaire":
+            return Evenement.objects.filter(
+                organisation=user.organisation, 
+                createur=user  # <--- AJOUTER CECI
+            )
+
+        # 3. Propriétaire : voit tout ce qui appartient à son organisation
+        if user.role == "proprietaire":
             return Evenement.objects.filter(organisation=user.organisation)
+
+        # 4. Par défaut (Participants/Staff) : voient le public
         return Evenement.objects.filter(statut="publie")
 
     def perform_create(self, serializer):
