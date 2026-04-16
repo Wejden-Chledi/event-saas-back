@@ -30,6 +30,7 @@ class Notification(models.Model):
     type_notification = models.CharField(max_length=20, choices=TYPE_CHOICES, default='email')
     sujet = models.CharField(max_length=200, blank=True, null=True)
     message = models.TextField()
+    html_message = models.TextField(blank=True, null=True)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_envoi = models.DateTimeField(blank=True, null=True)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')
@@ -38,22 +39,27 @@ class Notification(models.Model):
         return f"{self.type_notification} -> {self.destinataire.email} [{self.statut}]"
 
     def envoyer(self):
-        """Logique d'envoi selon le type"""
-        if self.type_notification == 'email':
+     """Logique d'envoi selon le type"""
+     if self.type_notification == 'email':
             try:
                 send_mail(
                     subject=self.sujet or "Notification EventSaaS",
-                    message=self.message,
+                    message=self.message,  # version texte
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[self.destinataire.email],
+                    html_message=self.html_message,  # ✅ HTML ici
                     fail_silently=False,
                 )
+
                 self.statut = 'envoye'
                 self.date_envoi = timezone.now()
+
             except Exception as e:
                 logger.error(f"Erreur envoi email notification {self.id}: {e}")
                 self.statut = 'echoue'
+
             self.save()
-        
+
+   
         # Logique pour SMS ou Push à ajouter ici plus tard
-        return self.statut == 'envoye'
+     return self.statut == 'envoye'

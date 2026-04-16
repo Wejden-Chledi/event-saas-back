@@ -62,7 +62,6 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.assistant",
     "apps.feedback",
-    "django_celery_beat",
 ]
 
 # --- MIDDLEWARE ---
@@ -202,25 +201,3 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
-
-# =========================
-# CELERY CONFIG
-# =========================
-
-import os
-
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
-
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-
-# Celery Beat (planification)
-from celery.schedules import crontab
-
-CELERY_BEAT_SCHEDULE = {
-    'envoyer-feedback-chaque-heure': {
-        'task': 'apps.feedback.tasks.envoyer_demandes_feedback_task',
-        'schedule': crontab(minute=0),
-    },
-}

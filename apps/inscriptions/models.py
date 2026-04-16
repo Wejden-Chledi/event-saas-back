@@ -31,6 +31,7 @@ class Inscription(models.Model):
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="en_attente")
     montant_paye = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     date_inscription = models.DateTimeField(auto_now_add=True)
+    email_feedback_envoye = models.BooleanField(default=False)
     reference_paiement = models.CharField(max_length=100, unique=True, blank=True)
     paiement = models.OneToOneField(
         Paiement, 
