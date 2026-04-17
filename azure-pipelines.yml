@@ -8,16 +8,12 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  
   dockerRegistryServiceConnection: 'eventsaasregistry' 
   ACR_LOGIN_SERVER: 'eventsaasregistry.azurecr.io'
   IMAGE_NAME: 'event-saas-backend'
   IMAGE_TAG: '$(Build.BuildId)'
-  # Note : Les variables comme CORS_ALLOWED_ORIGINS ou SECRET_KEY 
-  # sont ajoutées directement via l'interface UI d'Azure DevOps
 
 stages:
-# --- STAGE 1 : TESTS UNITAIRES ---
 - stage: Test
   displayName: "Validation & Tests"
   jobs:
@@ -35,15 +31,22 @@ stages:
 
     - script: |
         export DJANGO_SETTINGS_MODULE=config.settings.test
+        # Lancement de pytest
         pytest --cov=apps --cov-report=xml --junitxml=test-results.xml
       displayName: 'Exécuter les tests'
       env:
-        # On lie les variables de l'interface Azure DevOps aux variables d'env de Django
+        # --- CRITIQUE : C'est ici qu'on lie les variables de l'interface ---
         SECRET_KEY: $(SECRET_KEY)
+        CORS_ALLOWED_ORIGINS: $(CORS_ALLOWED_ORIGINS)
         AZURE_OPENAI_API_KEY: $(AZURE_OPENAI_API_KEY)
         AZURE_OPENAI_ENDPOINT: $(AZURE_OPENAI_ENDPOINT)
+        AZURE_OPENAI_DEPLOYMENT: $(AZURE_OPENAI_DEPLOYMENT)
+        STRIPE_PUBLIC_KEY: $(STRIPE_PUBLIC_KEY)
         STRIPE_SECRET_KEY: $(STRIPE_SECRET_KEY)
-        CORS_ALLOWED_ORIGINS: $(CORS_ALLOWED_ORIGINS)
+        AZURE_ACCOUNT_NAME: $(AZURE_ACCOUNT_NAME)
+        AZURE_ACCOUNT_KEY: $(AZURE_ACCOUNT_KEY)
+        AZURE_CONTAINER: $(AZURE_CONTAINER)
+        DB_PORT: 3306
 
     - task: PublishTestResults@2
       condition: always()
@@ -52,13 +55,6 @@ stages:
         testResultsFiles: 'test-results.xml'
         title: 'Rapport des tests'
 
-    - task: PublishCodeCoverageResults@1
-      condition: always()
-      inputs:
-        codeCoverageTool: 'Cobertura'
-        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
-
-# --- STAGE 2 : BUILD ---
 - stage: Build
   displayName: "Build and Push"
   dependsOn: Test
@@ -67,7 +63,6 @@ stages:
   - job: Build
     steps:
     - task: Docker@2
-      displayName: "Build and Push to ACR"
       inputs:
         containerRegistry: '$(dockerRegistryServiceConnection)'
         repository: '$(IMAGE_NAME)'
@@ -77,7 +72,6 @@ stages:
           $(IMAGE_TAG)
           latest
 
-# --- STAGE 3 : DEPLOY ---
 - stage: Deploy
   displayName: "Deploy to Container App"
   dependsOn: Build
@@ -86,7 +80,6 @@ stages:
   - job: Deploy
     steps:
     - task: AzureCLI@2
-      displayName: "Update Container App"
       inputs:
         azureSubscription: 'Azure subscription 1(1b6ca1a5-4833-492a-bb20-b1a8f34a9e50)' 
         scriptType: bash
