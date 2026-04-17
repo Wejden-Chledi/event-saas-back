@@ -1,3 +1,4 @@
+# azure-Pipelines.yml
 trigger:
   branches:
     include:
@@ -7,17 +8,13 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  # Importation du groupe de variables créé dans la Library
-  - group: eventora-secrets
-  # Variables statiques du pipeline
-  - name: dockerRegistryServiceConnection
-    value: 'eventsaasregistry' 
-  - name: ACR_LOGIN_SERVER
-    value: 'eventsaasregistry.azurecr.io'
-  - name: IMAGE_NAME
-    value: 'event-saas-backend'
-  - name: IMAGE_TAG
-    value: '$(Build.BuildId)'
+  
+  dockerRegistryServiceConnection: 'eventsaasregistry' 
+  ACR_LOGIN_SERVER: 'eventsaasregistry.azurecr.io'
+  IMAGE_NAME: 'event-saas-backend'
+  IMAGE_TAG: '$(Build.BuildId)'
+  # Note : Les variables comme CORS_ALLOWED_ORIGINS ou SECRET_KEY 
+  # sont ajoutées directement via l'interface UI d'Azure DevOps
 
 stages:
 # --- STAGE 1 : TESTS UNITAIRES ---
@@ -34,46 +31,43 @@ stages:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-django pytest-cov
-      displayName: 'Install Dependencies'
+      displayName: 'Installer les dépendances'
 
     - script: |
         export DJANGO_SETTINGS_MODULE=config.settings.test
-        # Lancement de pytest avec génération de rapports
         pytest --cov=apps --cov-report=xml --junitxml=test-results.xml
-      displayName: 'Run Pytest'
+      displayName: 'Exécuter les tests'
       env:
-        # On injecte ici les variables depuis le Variable Group
+        # On lie les variables de l'interface Azure DevOps aux variables d'env de Django
         SECRET_KEY: $(SECRET_KEY)
         AZURE_OPENAI_API_KEY: $(AZURE_OPENAI_API_KEY)
         AZURE_OPENAI_ENDPOINT: $(AZURE_OPENAI_ENDPOINT)
         STRIPE_SECRET_KEY: $(STRIPE_SECRET_KEY)
-        DB_PORT: 3306 # Valeur par défaut pour éviter les erreurs d'init
+        CORS_ALLOWED_ORIGINS: $(CORS_ALLOWED_ORIGINS)
 
-    # Publication des résultats même si un test échoue
     - task: PublishTestResults@2
       condition: always()
       inputs:
         testResultsFormat: 'JUnit'
         testResultsFiles: 'test-results.xml'
-        title: 'Rapport des tests unitaires'
+        title: 'Rapport des tests'
 
     - task: PublishCodeCoverageResults@1
       condition: always()
       inputs:
         codeCoverageTool: 'Cobertura'
         summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
-      displayName: 'Rapport de couverture'
 
-# --- STAGE 2 : BUILD DOCKER ---
+# --- STAGE 2 : BUILD ---
 - stage: Build
   displayName: "Build and Push"
   dependsOn: Test
-  condition: succeeded() # Ne build que si les tests passent
+  condition: succeeded()
   jobs:
   - job: Build
     steps:
     - task: Docker@2
-      displayName: "Build and Push image to ACR"
+      displayName: "Build and Push to ACR"
       inputs:
         containerRegistry: '$(dockerRegistryServiceConnection)'
         repository: '$(IMAGE_NAME)'
@@ -83,16 +77,16 @@ stages:
           $(IMAGE_TAG)
           latest
 
-# --- STAGE 3 : DÉPLOIEMENT ---
+# --- STAGE 3 : DEPLOY ---
 - stage: Deploy
-  displayName: "Deploy to Azure"
+  displayName: "Deploy to Container App"
   dependsOn: Build
   condition: succeeded()
   jobs:
   - job: Deploy
     steps:
     - task: AzureCLI@2
-      displayName: "Update Container App with latest image"
+      displayName: "Update Container App"
       inputs:
         azureSubscription: 'Azure subscription 1(1b6ca1a5-4833-492a-bb20-b1a8f34a9e50)' 
         scriptType: bash
