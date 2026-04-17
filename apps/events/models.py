@@ -19,7 +19,7 @@ class Evenement(models.Model):
     ]
 
     titre = models.CharField(max_length=200)
-    description = models.TextField()
+    description = models.TextField(blank=True)
     lieu = models.CharField(max_length=200)
 
     date_debut = models.DateTimeField(default=timezone.now)

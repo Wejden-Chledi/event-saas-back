@@ -8,16 +8,49 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  # Le nom de connexion de service Docker établie dans Azure DevOps
   dockerRegistryServiceConnection: 'eventsaasregistry' 
   ACR_LOGIN_SERVER: 'eventsaasregistry.azurecr.io'
   IMAGE_NAME: 'event-saas-backend'
-  # Utiliser l'ID du build pour éviter les problèmes de cache sur Azure
   IMAGE_TAG: '$(Build.BuildId)'
 
 stages:
+# --- NOUVEAU STAGE : TEST ---
+- stage: Test
+  displayName: "Unit Tests & Coverage"
+  jobs:
+  - job: RunTests
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+
+    - script: |
+        pip install -r requirements.txt
+        pip install pytest pytest-django pytest-cov
+      displayName: 'Install dependencies'
+
+    - script: |
+        # On force Django à utiliser les settings de test
+        export DJANGO_SETTINGS_MODULE=config.settings.test
+        pytest --cov=apps --cov-report=xml --cov-report=term-missing
+      displayName: 'Run Pytest with SQLite'
+      env:
+        # Indique à Django d'utiliser les settings de test (sans vraie DB si possible)
+        DJANGO_SETTINGS_MODULE: config.settings.test 
+        # Ajoute ici tes clés secrètes si tes tests en ont besoin (ex: OpenAI)
+
+    # Cette tâche permet de voir le rapport de 90% directement dans Azure DevOps
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+      displayName: 'Publish Results to Azure'
+
+# --- STAGE BUILD (Modifié pour attendre les tests) ---
 - stage: Build
   displayName: Build and Push
+  dependsOn: Test # <--- IMPORTANT : On ne build que si les tests passent
+  condition: succeeded()
   jobs:
   - job: Build
     steps:
@@ -32,6 +65,7 @@ stages:
           $(IMAGE_TAG)
           latest
 
+# --- STAGE DEPLOY ---
 - stage: Deploy
   displayName: Deploy to Container App
   dependsOn: Build
