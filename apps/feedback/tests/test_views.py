@@ -1,7 +1,9 @@
+# apps/feedback/tests/test_views.py
 import pytest
 from unittest.mock import patch
 from rest_framework import status
 from apps.feedback.models import Feedback
+from django.urls import reverse
 
 @pytest.mark.django_db
 class TestFeedbackViews:
@@ -10,16 +12,24 @@ class TestFeedbackViews:
         user, event = create_feedback_data()
         client = auth_client(user)
 
+        # Utilisation de reverse au lieu de "/api/feedback/avis/"
+        # Le nom est composé de 'feedback' (basename) + '-list' (pour le POST/GET list)
+        url = reverse('feedback-list')
+
         data = {
             "evenement": event.id,
-            "organisation": 5, "contenu": 4, "intervenants": 5,
-            "lieu": 3, "ambiance": 4, "rapport_qualite_prix": 5,
+            "organisation": 5, 
+            "contenu": 4, 
+            "intervenants": 5,
+            "lieu": 3, 
+            "ambiance": 4, 
+            "rapport_qualite_prix": 5,
             "commentaire": "Très bonne expérience"
         }
 
         # On mock l'appel IA dans le serializer create
         with patch('apps.feedback.serializers.analyser_sentiment_avis', return_value="Positif"):
-            response = client.post("/api/feedback/avis/", data)
+            response = client.post(url, data)
 
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data['note_globale'] == 4  # Moyenne de (5+4+5+3+4+5)/6 = 4.33 -> 4
@@ -30,13 +40,19 @@ class TestFeedbackViews:
         event = create_event("Event Locked")
         client = auth_client(user)
 
+        url = reverse('feedback-list')
+
         data = {
             "evenement": event.id,
-            "organisation": 5, "contenu": 5, "intervenants": 5,
-            "lieu": 5, "ambiance": 5, "rapport_qualite_prix": 5
+            "organisation": 5, 
+            "contenu": 5, 
+            "intervenants": 5,
+            "lieu": 5, 
+            "ambiance": 5, 
+            "rapport_qualite_prix": 5
         }
         
-        response = client.post("/api/feedback/avis/", data)
+        response = client.post(url, data)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Seuls les participants ayant scanné leur billet" in str(response.data)
 
@@ -46,7 +62,12 @@ class TestFeedbackViews:
         event.save()
         
         client = auth_client(user)
-        response = client.get("/api/feedback/avis/a_noter/")
+        
+        # Pour une action personnalisée (@action) sur un ViewSet : {basename}-{nom_de_l_action}
+        # Ici l'action s'appelle 'a_noter', donc le nom est 'feedback-a-noter'
+        url = reverse('feedback-a-noter')
+        
+        response = client.get(url)
         
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data['results']) == 1

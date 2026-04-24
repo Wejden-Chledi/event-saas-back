@@ -1,15 +1,17 @@
 # config/settings/test.py
 from .base import *
 
+DEBUG = True # Force le mode debug pour éviter les redirections de sécurité
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",  # Plus rapide, pas de fichier créé
+        "NAME": ":memory:",
     }
 }
 
-# Désactive le hashage de mot de passe complexe pour accélérer les tests
-PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.MD5PasswordHasher',
-]
-EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+# Désactiver absolument toutes les redirections de sécurité pour le pipeline
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+APPEND_SLASH = True  # Assure-toi que c'est cohérent avec tes URLs de tests

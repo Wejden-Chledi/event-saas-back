@@ -17,12 +17,12 @@ urlpatterns = [
     # Auth & Inscriptions
     path("auth/login/", CustomTokenObtainPairView.as_view(), name="login"),
     path("auth/logout/", logout_view, name="logout"),
-    path("proprietaire/register/", register_proprietaire_view),
-    path("participant/register/", register_participant_view),
+    path("proprietaire/register/", register_proprietaire_view, name="register-proprietaire"),
+    path("participant/register/", register_participant_view, name="register-participant"),
 
     # Profil
-    path("profile/", profile_view),
-    path("profile/update/", update_user_view),
+    path("profile/", profile_view, name="user-profile"),
+    path("profile/update/", update_user_view, name="user-profile-update"),
 
     # Inclusion des routes automatiques
     path("", include(router.urls)),

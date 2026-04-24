@@ -137,7 +137,7 @@ class UserViewsTestCase(APITestCase):
 
     def test_profile_view_authenticated(self):
         self.client.force_authenticate(user=self.staff_existant)
-        url = "/api/users/profile/" 
+        url = reverse('user-profile')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['email'], self.staff_existant.email)
