@@ -43,19 +43,15 @@ stages:
 
     - script: |
         python -m pip install --upgrade pip
-        # Installation des dépendances nécessaires pour compiler mysqlclient sur Ubuntu
+        # On installe les dépendances système nécessaires pour mysqlclient (même pour les tests)
         sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
         pip install -r requirements.txt
-        pip install pytest pytest-django pytest-azurepipelines
       displayName: 'Install dependencies'
 
     - script: |
-        # On force Django à utiliser SQLite en mémoire pour les tests
-        # Cela évite de chercher un serveur MySQL qui n'existe pas dans le pipeline
-        export DJANGO_DATABASE_ENGINE='django.db.backends.sqlite3'
-        export DB_NAME=':memory:'
-        python manage.py test
-      displayName: 'Run Django Tests with SQLite'
+        # On indique à Django d'utiliser ton fichier de configuration spécial test
+        python manage.py test --settings=config.settings.test
+      displayName: 'Run Django Tests with SQLite' 
       
 - stage: Deploy
   displayName: Deploy to Container App
