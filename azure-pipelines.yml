@@ -50,7 +50,7 @@ stages:
       displayName: 'Install dependencies'
 
     - script: |
-        # On définit le module de réglages via variable d'env pour être sûr
+        # Force le module de settings via variable d'environnement
         export DJANGO_SETTINGS_MODULE=config.settings.test
         
         python manage.py collectstatic --noinput
