@@ -1,4 +1,3 @@
-# azure-Pipelines.yml
 trigger:
   branches:
     include:
@@ -8,14 +7,13 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  # Le nom de connexion de service Docker établie dans Azure DevOps
   dockerRegistryServiceConnection: 'eventsaasregistry' 
   ACR_LOGIN_SERVER: 'eventsaasregistry.azurecr.io'
   IMAGE_NAME: 'event-saas-backend'
-  # Utiliser l'ID du build pour éviter les problèmes de cache sur Azure
   IMAGE_TAG: '$(Build.BuildId)'
 
 stages:
+# --- STAGE 1: BUILD ---
 - stage: Build
   displayName: Build and Push
   jobs:
@@ -32,9 +30,36 @@ stages:
           $(IMAGE_TAG)
           latest
 
+# --- STAGE 2: TEST ---
+- stage: Test
+  displayName: Run Unit Tests
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: RunTests
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+      displayName: 'Install Python 3.11'
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        # Installation des outils de test s'ils ne sont pas dans requirements.txt
+        pip install pytest pytest-django pytest-azurepipelines
+      displayName: 'Install dependencies'
+
+    - script: |
+        # Django utilise par défaut une base SQLite en mémoire pour les tests, 
+        # ce qui évite d'avoir besoin de MySQL dans le pipeline.
+        python manage.py test
+      displayName: 'Run Django Tests'
+
+# --- STAGE 3: DEPLOY ---
 - stage: Deploy
   displayName: Deploy to Container App
-  dependsOn: Build
+  dependsOn: Test
   condition: succeeded()
   jobs:
   - job: Deploy
