@@ -50,7 +50,9 @@ stages:
       displayName: 'Install dependencies'
 
     - script: |
+        # On définit le module de réglages via variable d'env pour être sûr
         export DJANGO_SETTINGS_MODULE=config.settings.test
+        
         python manage.py collectstatic --noinput
         python manage.py test
       displayName: 'Run Django Tests'
