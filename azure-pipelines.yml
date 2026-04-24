@@ -50,11 +50,9 @@ stages:
       displayName: 'Install dependencies'
 
     - script: |
-        # On prépare les fichiers statiques pour éviter les warnings
-        python manage.py collectstatic --noinput --settings=config.settings.test
-        
-        # On lance les tests avec le bon fichier de réglages
-        python manage.py test --settings=config.settings.test
+        export DJANGO_SETTINGS_MODULE=config.settings.test
+        python manage.py collectstatic --noinput
+        python manage.py test
       displayName: 'Run Django Tests'
 
 
