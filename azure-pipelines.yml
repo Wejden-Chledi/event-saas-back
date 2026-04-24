@@ -41,18 +41,25 @@ stages:
         versionSpec: '3.11'
       displayName: 'Install Python 3.11'
 
+
     - script: |
         python -m pip install --upgrade pip
-        # On installe les dépendances système nécessaires pour mysqlclient (même pour les tests)
         sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
         pip install -r requirements.txt
+        pip install pytest-azurepipelines # Pour une meilleure intégration des rapports
       displayName: 'Install dependencies'
 
     - script: |
-        # On indique à Django d'utiliser ton fichier de configuration spécial test
+        # On prépare les fichiers statiques pour éviter les warnings
+        python manage.py collectstatic --noinput --settings=config.settings.test
+        
+        # On lance les tests avec le bon fichier de réglages
         python manage.py test --settings=config.settings.test
-      displayName: 'Run Django Tests with SQLite' 
-      
+      displayName: 'Run Django Tests'
+
+
+
+  
 - stage: Deploy
   displayName: Deploy to Container App
   dependsOn: Test
