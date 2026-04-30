@@ -41,21 +41,28 @@ stages:
         versionSpec: '3.11'
       displayName: 'Install Python 3.11'
 
-
     - script: |
         python -m pip install --upgrade pip
         sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
         pip install -r requirements.txt
-        pip install pytest-azurepipelines # Pour une meilleure intégration des rapports
+        # Installation des outils nécessaires pour le rapport et le seuil
+        pip install pytest pytest-django pytest-cov pytest-azurepipelines
       displayName: 'Install dependencies'
 
     - script: |
-        # Force le module de settings via variable d'environnement
         export DJANGO_SETTINGS_MODULE=config.settings.test
-        
-        python manage.py collectstatic --noinput
-        python manage.py test
-      displayName: 'Run Django Tests'
+        # --cov=apps : calcule le coverage sur ton dossier apps
+        # --cov-report : génère un rapport XML (pour Azure) et terminal
+        # --cov-fail-under=75 : FAIT ÉCHOUER LE PIPELINE si < 75%
+        pytest --cov=apps --cov-report=xml --cov-report=term-missing --cov-fail-under=75
+      displayName: 'Run Pytest with Coverage'
+
+    # Optionnel : Affiche le rapport de coverage graphiquement dans Azure DevOps
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+      displayName: 'Publish Coverage Report'
 
 
 

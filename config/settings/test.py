@@ -14,4 +14,4 @@ DATABASES = {
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
-APPEND_SLASH = True  # Assure-toi que c'est cohérent avec tes URLs de tests
+APPEND_SLASH = False  
