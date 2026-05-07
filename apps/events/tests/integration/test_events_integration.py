@@ -7,6 +7,7 @@ User = get_user_model()
 
 
 @pytest.mark.django_db
+@pytest.mark.integration
 class TestEvenementIntegration:
 
     def setup_method(self):

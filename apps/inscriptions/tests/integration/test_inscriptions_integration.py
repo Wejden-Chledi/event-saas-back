@@ -1,4 +1,5 @@
 from django.urls import reverse
+import pytest
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.utils import timezone
@@ -9,6 +10,8 @@ from apps.inscriptions.models import Inscription, Billet
 from apps.payments.models import Paiement
 from unittest.mock import patch
 
+@pytest.mark.django_db
+@pytest.mark.integration
 class InscriptionFlowIntegrationTestCase(APITestCase):
     """
     Test d'intégration couvrant le cycle de vie complet :

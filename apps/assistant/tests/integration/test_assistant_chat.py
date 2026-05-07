@@ -9,6 +9,8 @@ from apps.events.models import Evenement
 from apps.organisations.models import Organisation
 from django.utils import timezone
 
+@pytest.mark.django_db
+@pytest.mark.integration
 class AssistantIntegrationTestCase(APITestCase):
     def setUp(self):
         # 1. Création de l'utilisateur

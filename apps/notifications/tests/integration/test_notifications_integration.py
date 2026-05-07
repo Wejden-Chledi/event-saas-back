@@ -12,6 +12,8 @@ from apps.organisations.models import Organisation
 from apps.inscriptions.models import Inscription, Billet
 from apps.notifications.models import Notification
 
+@pytest.mark.django_db
+@pytest.mark.integration
 class NotificationsIntegrationTestCase(APITestCase):
     def setUp(self):
         # 1. Création des utilisateurs

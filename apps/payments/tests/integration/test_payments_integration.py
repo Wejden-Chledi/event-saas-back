@@ -1,3 +1,4 @@
+# apps/payments/tests/integration/test_payments_integration.py
 import pytest
 from django.urls import reverse
 from rest_framework import status
@@ -11,6 +12,8 @@ from apps.events.models import Evenement
 from apps.inscriptions.models import Inscription, Billet
 from apps.payments.models import Paiement
 
+@pytest.mark.django_db
+@pytest.mark.integration
 class PaymentsIntegrationTestCase(APITestCase):
     def setUp(self):
         """Configuration initiale pour un cycle complet de paiement."""

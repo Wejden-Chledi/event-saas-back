@@ -11,6 +11,8 @@ from apps.organisations.models import Organisation
 from apps.inscriptions.models import Inscription
 from apps.feedback.models import Feedback, RapportIAEvenement
 
+@pytest.mark.django_db
+@pytest.mark.integration
 class FeedbackIntegrationTestCase(APITestCase):
     def setUp(self):
         # FIX: Ajout de nom et prenom obligatoires

@@ -1,4 +1,6 @@
+# apps/users/tests/integration/test_integration.py
 import pytest
+
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -8,7 +10,9 @@ from apps.events.models import Evenement, AssignationEvenement
 
 
 
+
 @pytest.mark.django_db
+@pytest.mark.integration
 class TestUsersIntegration:
 
     def setup_method(self):

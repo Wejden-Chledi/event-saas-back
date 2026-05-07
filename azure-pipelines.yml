@@ -26,7 +26,7 @@ stages:
     steps:
 
     - task: Docker@2
-      displayName: Build and Push
+      displayName: Build and Push to ACR
       inputs:
         containerRegistry: '$(dockerRegistryServiceConnection)'
         repository: '$(IMAGE_NAME)'
@@ -38,7 +38,7 @@ stages:
 
 
 # ─────────────────────────────
-# STAGE 2 : TESTS UNITAIRES + INTEGRATION
+# STAGE 2 : TESTS UNIT + INTEGRATION
 # ─────────────────────────────
 - stage: Test
   displayName: Run Tests
@@ -47,15 +47,15 @@ stages:
 
   jobs:
 
-  - job: RunTests
-    displayName: Pytest Execution
+  - job: UnitTests
+    displayName: Unit Tests
 
     steps:
 
     - task: UsePythonVersion@0
-      displayName: Install Python 3.11
       inputs:
         versionSpec: '3.11'
+      displayName: Install Python
 
     - script: |
         python -m pip install --upgrade pip
@@ -64,11 +64,11 @@ stages:
         pip install pytest pytest-django pytest-cov pytest-azurepipelines
       displayName: Install dependencies
 
-    # ───────── UNIT TESTS ─────────
     - script: |
         export DJANGO_SETTINGS_MODULE=config.settings.test
 
         echo "===== UNIT TESTS ====="
+
         pytest apps \
           -m "not integration" \
           --cov=apps \
@@ -77,11 +77,30 @@ stages:
           --cov-fail-under=75
       displayName: Run Unit Tests
 
-    # ───────── INTEGRATION TESTS ─────────
+
+  - job: IntegrationTests
+    displayName: Integration Tests
+    dependsOn: UnitTests
+
+    steps:
+
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+      displayName: Install Python
+
+    - script: |
+        python -m pip install --upgrade pip
+        sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
+        pip install -r requirements.txt
+        pip install pytest pytest-django pytest-cov pytest-azurepipelines
+      displayName: Install dependencies
+
     - script: |
         export DJANGO_SETTINGS_MODULE=config.settings.test
 
         echo "===== INTEGRATION TESTS ====="
+
         pytest apps \
           -m "integration" \
           --cov=apps \
@@ -89,26 +108,19 @@ stages:
           --cov-report=term-missing
       displayName: Run Integration Tests
 
-    # ───────── COVERAGE REPORT ─────────
-    - task: PublishCodeCoverageResults@1
-      displayName: Publish Coverage Report
-      inputs:
-        codeCoverageTool: 'Cobertura'
-        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
-
 
 # ─────────────────────────────
 # STAGE 3 : DEPLOY
 # ─────────────────────────────
 - stage: Deploy
-  displayName: Deploy to Container App
+  displayName: Deploy Backend
   dependsOn: Test
   condition: succeeded()
 
   jobs:
 
   - job: Deploy
-    displayName: Deploy Backend
+    displayName: Deploy to Container App
 
     steps:
 

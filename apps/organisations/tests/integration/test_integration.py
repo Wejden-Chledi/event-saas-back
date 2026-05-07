@@ -5,6 +5,7 @@ from apps.organisations.models import Organisation, Abonnement
 
 
 @pytest.mark.django_db
+@pytest.mark.integration
 class TestOrganisationIntegration:
 
     def setup_method(self):
