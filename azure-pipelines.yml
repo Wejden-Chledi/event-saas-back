@@ -36,6 +36,7 @@ stages:
           $(IMAGE_TAG)
           latest
 
+
 # ─────────────────────────────
 # STAGE 2 : TESTS UNITAIRES + INTEGRATION
 # ─────────────────────────────
@@ -97,18 +98,18 @@ stages:
 
 
 # ─────────────────────────────
-# STAGE 4 : DEPLOY
+# STAGE 3 : DEPLOY
 # ─────────────────────────────
 - stage: Deploy
   displayName: Deploy to Container App
-  dependsOn:
-    - UnitTests
-    - IntegrationTests
+  dependsOn: Test
   condition: succeeded()
 
   jobs:
 
   - job: Deploy
+    displayName: Deploy Backend
+
     steps:
 
     - task: AzureCLI@2
