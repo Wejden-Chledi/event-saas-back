@@ -1,5 +1,4 @@
 # apps/payments/tests/test_views.py
-# apps/payments/tests/test_views.py
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase

@@ -59,8 +59,9 @@ class InscriptionCreateSerializer(serializers.ModelSerializer):
     """Serializer pour la création initiale d'une inscription (avant paiement)"""
     class Meta:
         model = Inscription
-        fields = ["evenement"]
-
+        fields = ["id", "evenement"] # Ajoute "id" ici
+        read_only_fields = ["id"]
+        
     def validate(self, data):
         user = self.context["request"].user
         evenement = data["evenement"]

@@ -1,3 +1,4 @@
+# apps/inscriptions/tests/test_serializers.py
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError

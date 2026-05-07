@@ -258,7 +258,7 @@ class StaffCreateSerializer(serializers.ModelSerializer):
         return Utilisateur.objects.create_user(
             role="staff",
             organisation=org,
-            statut=validated_data.get("statut", "actif"),
+            statut=validated_data.pop("statut", "actif"),
             password=password,  # ✅ TRÈS IMPORTANT
             **validated_data
         )

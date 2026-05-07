@@ -1,3 +1,4 @@
+# apps/inscriptions/tests/test_models.py
 from django.test import TestCase
 from django.utils import timezone
 from apps.users.models import Utilisateur

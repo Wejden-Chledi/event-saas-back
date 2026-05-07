@@ -7,19 +7,26 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  dockerRegistryServiceConnection: 'eventsaasregistry' 
+  dockerRegistryServiceConnection: 'eventsaasregistry'
   ACR_LOGIN_SERVER: 'eventsaasregistry.azurecr.io'
   IMAGE_NAME: 'event-saas-backend'
   IMAGE_TAG: '$(Build.BuildId)'
 
 stages:
+
+# ─────────────────────────────
+# STAGE 1 : BUILD IMAGE
+# ─────────────────────────────
 - stage: Build
   displayName: Build and Push
   jobs:
+
   - job: Build
+    displayName: Docker Build
     steps:
+
     - task: Docker@2
-      displayName: Build and Push to ACR
+      displayName: Build and Push
       inputs:
         containerRegistry: '$(dockerRegistryServiceConnection)'
         repository: '$(IMAGE_NAME)'
@@ -29,55 +36,85 @@ stages:
           $(IMAGE_TAG)
           latest
 
+# ─────────────────────────────
+# STAGE 2 : TESTS UNITAIRES + INTEGRATION
+# ─────────────────────────────
 - stage: Test
-  displayName: Run Unit Tests
+  displayName: Run Tests
   dependsOn: Build
   condition: succeeded()
+
   jobs:
+
   - job: RunTests
+    displayName: Pytest Execution
+
     steps:
+
     - task: UsePythonVersion@0
+      displayName: Install Python 3.11
       inputs:
         versionSpec: '3.11'
-      displayName: 'Install Python 3.11'
 
     - script: |
         python -m pip install --upgrade pip
         sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
         pip install -r requirements.txt
-        # Installation des outils nécessaires pour le rapport et le seuil
         pip install pytest pytest-django pytest-cov pytest-azurepipelines
-      displayName: 'Install dependencies'
+      displayName: Install dependencies
 
+    # ───────── UNIT TESTS ─────────
     - script: |
         export DJANGO_SETTINGS_MODULE=config.settings.test
-        # --cov=apps : calcule le coverage sur ton dossier apps
-        # --cov-report : génère un rapport XML (pour Azure) et terminal
-        # --cov-fail-under=75 : FAIT ÉCHOUER LE PIPELINE si < 75%
-        pytest --cov=apps --cov-report=xml --cov-report=term-missing --cov-fail-under=75
-      displayName: 'Run Pytest with Coverage'
 
-    # Optionnel : Affiche le rapport de coverage graphiquement dans Azure DevOps
+        echo "===== UNIT TESTS ====="
+        pytest apps \
+          -m "not integration" \
+          --cov=apps \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --cov-fail-under=75
+      displayName: Run Unit Tests
+
+    # ───────── INTEGRATION TESTS ─────────
+    - script: |
+        export DJANGO_SETTINGS_MODULE=config.settings.test
+
+        echo "===== INTEGRATION TESTS ====="
+        pytest apps \
+          -m "integration" \
+          --cov=apps \
+          --cov-report=xml \
+          --cov-report=term-missing
+      displayName: Run Integration Tests
+
+    # ───────── COVERAGE REPORT ─────────
     - task: PublishCodeCoverageResults@1
+      displayName: Publish Coverage Report
       inputs:
         codeCoverageTool: 'Cobertura'
         summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
-      displayName: 'Publish Coverage Report'
 
 
-
-  
+# ─────────────────────────────
+# STAGE 4 : DEPLOY
+# ─────────────────────────────
 - stage: Deploy
   displayName: Deploy to Container App
-  dependsOn: Test
+  dependsOn:
+    - UnitTests
+    - IntegrationTests
   condition: succeeded()
+
   jobs:
+
   - job: Deploy
     steps:
+
     - task: AzureCLI@2
       displayName: Update Container App
       inputs:
-        azureSubscription: 'Azure subscription 1(1b6ca1a5-4833-492a-bb20-b1a8f34a9e50)' 
+        azureSubscription: 'Azure subscription 1(1b6ca1a5-4833-492a-bb20-b1a8f34a9e50)'
         scriptType: bash
         scriptLocation: inlineScript
         inlineScript: |

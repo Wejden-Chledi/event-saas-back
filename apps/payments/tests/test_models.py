@@ -1,3 +1,4 @@
+# apps/payments/tests/test_models.py
 from django.test import TestCase
 from apps.payments.models import Paiement
 from decimal import Decimal

@@ -1,3 +1,4 @@
+# apps/payments/tests/test_serializers.py
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from apps.payments.models import Paiement

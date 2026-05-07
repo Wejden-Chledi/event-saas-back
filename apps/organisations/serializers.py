@@ -4,9 +4,9 @@ from .models import Organisation, Abonnement
 from apps.users.serializers import UserSerializer
 
 
-# ==============================
-# Abonnement
-# ==============================
+# ======================
+# ABONNEMENT
+# ======================
 class AbonnementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Abonnement
@@ -14,14 +14,17 @@ class AbonnementSerializer(serializers.ModelSerializer):
         read_only_fields = ['date_creation']
 
 
-# ==============================
-# Organisation simple
-# ==============================
+# ======================
+# ORGANISATION SIMPLE
+# ======================
 class OrganisationSerializer(serializers.ModelSerializer):
 
     abonnement = AbonnementSerializer(read_only=True)
-    proprietaire_nom = serializers.CharField(source='proprietaire.nom', read_only=True)
-    proprietaire_email = serializers.CharField(source='proprietaire.email', read_only=True)
+
+    proprietaire_nom = serializers.CharField(
+        source='proprietaire.nom',
+        read_only=True
+    )
 
     class Meta:
         model = Organisation
@@ -29,14 +32,14 @@ class OrganisationSerializer(serializers.ModelSerializer):
         read_only_fields = ['date_creation', 'proprietaire']
 
 
-# ==============================
-# Organisation complète
-# ==============================
+# ======================
+# ORGANISATION COMPLETE
+# ======================
 class OrganisationCompleteSerializer(serializers.ModelSerializer):
 
     abonnement = AbonnementSerializer(read_only=True)
+
     gestionnaires = serializers.SerializerMethodField()
-    proprietaire_email = serializers.CharField(source='proprietaire.email', read_only=True)
 
     class Meta:
         model = Organisation
@@ -49,37 +52,49 @@ class OrganisationCompleteSerializer(serializers.ModelSerializer):
         ).data
 
 
-# ==============================
-# Création Organisation
-# ==============================
-class OrganisationCreateSerializer(serializers.ModelSerializer):
+# ======================
+# CREATE ORGANISATION FIXED
+# ======================
+# apps/organisations/serializers.py
 
+class OrganisationCreateSerializer(serializers.ModelSerializer):
     abonnement = AbonnementSerializer(required=False)
 
     class Meta:
         model = Organisation
         fields = [
-            'nom', 'secteur', 'description', 'email_contact', 'telephone',
-            'adresse', 'ville', 'pays', 'site_web', 'abonnement'
+            'nom', 'secteur', 'description',
+            'email_contact', 'telephone',
+            'adresse', 'ville', 'pays',
+            'site_web', 'abonnement'
         ]
 
+    # apps/organisations/serializers.py
+
     def create(self, validated_data):
-
+        # 1. Extraire le propriétaire injecté par serializer.save(proprietaire=...)
+        # Si non présent (cas de certains tests unitaires), on regarde dans le contexte
+        proprietaire = validated_data.pop('proprietaire', self.context.get('proprietaire'))
+        
+        # 2. Extraire les données d'abonnement
         abonnement_data = validated_data.pop('abonnement', None)
-        proprietaire = self.context.get('proprietaire')
 
+        # 3. Créer l'organisation
+        # Maintenant 'validated_data' ne contient plus 'proprietaire', donc pas de doublon
         organisation = Organisation.objects.create(
-            proprietaire=proprietaire,
+            proprietaire=proprietaire, 
             **validated_data
         )
 
+        # 4. Gérer l'abonnement
         if abonnement_data:
             abonnement = Abonnement.objects.create(**abonnement_data)
             organisation.abonnement = abonnement
             organisation.save()
 
-        # ✅ LIAISON USER ↔ ORG
-        proprietaire.organisation = organisation
-        proprietaire.save()
+        # 5. Lier l'organisation à l'utilisateur
+        if proprietaire:
+            proprietaire.organisation = organisation
+            proprietaire.save()
 
         return organisation

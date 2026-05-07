@@ -9,7 +9,7 @@ DATABASES = {
         "NAME": ":memory:",
     }
 }
-
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 # Désactiver absolument toutes les redirections de sécurité pour le pipeline
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False

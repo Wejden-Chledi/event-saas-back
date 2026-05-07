@@ -1,15 +1,12 @@
 # apps/organisations/models.py
-
 from django.db import models
 from django.utils import timezone
 from apps.users.models import Utilisateur
 
 
 # =====================================================
-# ABONNEMENT 
+# ABONNEMENT
 # =====================================================
-
-
 class Abonnement(models.Model):
 
     PLAN_CHOICES = [
@@ -25,15 +22,28 @@ class Abonnement(models.Model):
         ('expire', 'Expiré'),
     ]
 
-    plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='gratuit')
+    plan = models.CharField(
+        max_length=20,
+        choices=PLAN_CHOICES,
+        default='gratuit'
+    )
 
-    date_debut = models.DateField(default=timezone.now)
+    # ✅ FIX IMPORTANT (date only, pas datetime)
+    date_debut = models.DateField(default=timezone.localdate)
+
     date_fin = models.DateField(null=True, blank=True)
 
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='actif')
+    statut = models.CharField(
+        max_length=20,
+        choices=STATUT_CHOICES,
+        default='actif'
+    )
 
-    # ✅ AJOUT IMPORTANT
-    montant = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    montant = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
 
     date_creation = models.DateTimeField(auto_now_add=True)
 
@@ -45,23 +55,11 @@ class Abonnement(models.Model):
             self.statut = 'expire'
             self.save()
 
-# =====================================================
-# ORGANISATION (COEUR DU SAAS)
-# =====================================================
 
+# =====================================================
+# ORGANISATION (CORE SAAS)
+# =====================================================
 class Organisation(models.Model):
-    """
-    Organisation = client principal du SaaS.
-
-    🔥 Elle regroupe :
-    - propriétaire
-    - gestionnaires
-    - staff
-    - événements
-    - abonnement
-
-    👉 Multi-tenant system (clé du SaaS)
-    """
 
     SECTEUR_CHOICES = [
         ('technologie', 'Technologie'),
@@ -89,7 +87,6 @@ class Organisation(models.Model):
     # =========================
     email_contact = models.EmailField()
     telephone = models.CharField(max_length=20)
-
     site_web = models.URLField(blank=True, null=True)
 
     # =========================
@@ -100,20 +97,16 @@ class Organisation(models.Model):
     pays = models.CharField(max_length=100, blank=True, null=True)
 
     # =========================
-    # 👑 PROPRIETAIRE
+    # OWNER
     # =========================
     proprietaire = models.ForeignKey(
         Utilisateur,
         on_delete=models.CASCADE,
         related_name='organisations'
     )
-    """
-    👉 Celui qui crée l'organisation
-    👉 Peut gérer abonnement et utilisateurs
-    """
 
     # =========================
-    # 💳 ABONNEMENT
+    # ABONNEMENT
     # =========================
     abonnement = models.OneToOneField(
         Abonnement,
@@ -124,9 +117,10 @@ class Organisation(models.Model):
     )
 
     # =========================
-    # SYSTEME
+    # SYSTEM
     # =========================
     date_creation = models.DateTimeField(auto_now_add=True)
+
     actif = models.BooleanField(default=True)
 
     def __str__(self):
@@ -136,9 +130,6 @@ class Organisation(models.Model):
     # LOGIQUE METIER
     # =========================
     def est_active(self):
-        """
-        Vérifie si l'organisation est active
-        """
         if not self.abonnement:
             return False
 
@@ -147,9 +138,11 @@ class Organisation(models.Model):
 
     def nombre_utilisateurs(self):
         """
-        Retourne nombre de users dans l'organisation
+        Safe version (évite crash si relation inexistante)
         """
-        return self.utilisateurs.count()
+        if hasattr(self, "utilisateurs"):
+            return self.utilisateurs.count()
+        return 0
 
     class Meta:
         ordering = ['-date_creation']

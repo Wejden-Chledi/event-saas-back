@@ -1,3 +1,4 @@
+# apps/inscriptions/tests/test_views.py
 import uuid
 from django.urls import reverse
 from rest_framework import status
