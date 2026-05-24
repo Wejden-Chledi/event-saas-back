@@ -1,3 +1,4 @@
+# apps/events/tests/integration/test_events_integration.py
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -125,7 +126,7 @@ class TestEvenementIntegration:
     def test_staff_assigned_events(self):
         self.client.force_authenticate(user=self.staff)
 
-        response = self.client.get("/api/staff/assigned/")
+        response = self.client.get("/api/staff/events/assigned/")
         assert response.status_code == 200
 
     # =====================================================
