@@ -20,6 +20,7 @@ class Evenement(models.Model):
 
     titre = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    image_principale = models.ImageField(upload_to="events/covers/", blank=True, null=True)
     lieu = models.CharField(max_length=200)
 
     date_debut = models.DateTimeField(default=timezone.now)

@@ -48,26 +48,29 @@ class OrganisationViewSet(viewsets.ModelViewSet):
         serializer.save(proprietaire=self.request.user)
 
     # =========================
-    # ME
+    # ME (CORRIGÉ POUR GESTIONNAIRE)
     # =========================
     @action(detail=False, methods=['get', 'patch', 'put'])
     def me(self, request):
+        user = request.user
 
-        organisation = Organisation.objects.filter(
-            proprietaire=request.user
-        ).first()
+        # 🛠️ CORRECTION : On récupère l'organisation selon le rôle de l'utilisateur connecté
+        if user.role == "proprietaire":
+            organisation = Organisation.objects.filter(proprietaire=user).first()
+        else:
+            # Si c'est un gestionnaire, on prend l'organisation qui lui est associée
+            organisation = getattr(user, "organisation", None)
 
         if not organisation:
             return Response(
-                {"error": "Aucune organisation trouvée"},
+                {"error": "Aucune organisation associée à votre compte"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
         if request.method in ['PATCH', 'PUT']:
-
-            if request.user.role != "proprietaire":
+            if user.role != "proprietaire":
                 return Response(
-                    {"error": "Seul le propriétaire peut modifier"},
+                    {"error": "Seul le propriétaire peut modifier l'organisation"},
                     status=status.HTTP_403_FORBIDDEN
                 )
 
@@ -84,12 +87,17 @@ class OrganisationViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     # =========================
-    # STATS
+    # STATS (CORRIGÉ POUR GESTIONNAIRE)
     # =========================
     @action(detail=False, methods=['get'])
     def stats(self, request):
+        user = request.user
 
-        org = Organisation.objects.filter(proprietaire=request.user).first()
+        # 🛠️ CORRECTION : Même logique pour éviter le crash des stats
+        if user.role == "proprietaire":
+            org = Organisation.objects.filter(proprietaire=user).first()
+        else:
+            org = getattr(user, "organisation", None)
 
         if not org:
             return Response([])
@@ -98,7 +106,8 @@ class OrganisationViewSet(viewsets.ModelViewSet):
             {"label": "Événements", "value": 0, "color": "blue"},
             {
                 "label": "Gestionnaires",
-                "value": org.utilisateurs.filter(role='gestionnaire').count(),
+                # Utilisation de la relation inverse (utilisateurs ou utilisateur_set selon ton modèle)
+                "value": org.utilisateurs.filter(role='gestionnaire').count() if hasattr(org, 'utilisateurs') else 0,
                 "color": "green"
             },
             {"label": "Inscriptions", "value": 0, "color": "purple"},

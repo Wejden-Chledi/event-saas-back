@@ -1,90 +1,120 @@
-# Event SaaS Platform
+#  Event SaaS Platform
 
-Une plateforme SaaS complète pour la gestion d'événements 
-## 📋 Présentation du Projet
+Une plateforme SaaS complète pour la gestion d'événements avec inscription simple, paiement Stripe et assistant IA.
 
-Event SaaS est une application web moderne permettant aux organisations de créer, gérer et publier des événements. Les participants peuvent s'inscrire simplement aux événements publiés sans processus complexe de billetterie.
+## 📋 Vue d'Ensemble
+
+Event SaaS est une application web moderne permettant aux organisations de créer, gérer et publier des événements. Les participants peuvent s'inscrire, payer et recevoir des billets QR code. La plateforme inclut un assistant IA pour aider à la création d'événements.
+
 ### 🎯 Fonctionnalités Principales
 
-#### Pour les Organisateurs
-- **Création d'événements** : Titre, description, lieu, dates, capacité, prix
-- **Gestion des organisations** : Structure hiérarchique avec propriétaires et gestionnaires
-- **Dashboard de gestion** : Interface intuitive pour gérer tous les aspects
-- **Publication d'événements** : Statut brouillon → publié
-- **Suivi des inscriptions** : Liste des participants par événement
+#### 🏢 Pour les Organisations
+- **Gestion multi-rôles** : Propriétaires, gestionnaires, staff, participants
+- **Création d'événements** : Interface complète avec formulaire intelligent
+- **Assistant IA** : Génération automatique de descriptions d'événements
+- **Gestion des inscriptions** : Suivi en temps réel des participants
+- **Analytics** : Statistiques et graphiques sur les événements
+- **Notifications** : Système de notifications en temps réel
 
-#### Pour les Participants
-- **Exploration d'événements** : Consultation des événements publiés
-- **Inscription simple** : Un clic pour s'inscrire (sans billets)
-- **Vérification des places** : Contrôle automatique de la disponibilité
-- **Dashboard personnel** : Suivi de ses inscriptions
+#### 🎫 Pour les Participants
+- **Exploration d'événements** : Catalogue avec recherche et filtres
+- **Inscription simple** : Processus en 1-clic avec vérification des places
+- **Paiement sécurisé** : Intégration Stripe complète
+- **Billets QR code** : Génération et validation automatique
+- **Dashboard personnel** : Suivi de ses inscriptions et billets
+- **Feedback** : Système d'évaluation post-événement
 
-#### Pour les Administrateurs
-- **Gestion des utilisateurs** : Création de comptes propriétaires, gestionnaires, participants
-- **Gestion des organisations** : Administration des structures
-- **Monitoring** : Vue d'ensemble de toutes les activités
+#### 🤖 Assistant IA
+- **Génération de descriptions** : Création automatique de textes engageants
+- **Suggestions** : Recommandations basées sur les événements similaires
+- **Optimisation** : Analyse et amélioration des contenus
 
 ## 🏗️ Architecture Technique
 
 ### Backend (Django)
 - **Framework** : Django 5.2 avec Django REST Framework
-- **Base de données** : MySQL avec SSL
-- **Authentification** : JWT tokens
+- **Base de données** : MySQL sur Azure avec SSL
+- **Authentification** : JWT tokens avec rotation
 - **API** : RESTful avec documentation Swagger/OpenAPI
-- **Architecture** : Apps modulaires (users, organisations, events, proprietaire)
+- **Architecture** : Apps modulaires (users, organisations, events, inscriptions, payments, notifications, assistant, feedback)
+- **Stockage** : Azure Blob Storage pour les médias
+- **Sécurité** : CORS, HTTPS, HSTS en production
 
 ### Frontend (React)
 - **Framework** : React 19.2 avec Vite
-- **Routing** : React Router DOM
-- **UI** : TailwindCSS avec composants Lucide React
-- **HTTP Client** : Axios avec intercepteurs pour authentification
-- **Notifications** : React Toastify
+- **Routing** : React Router DOM v7
+- **UI** : TailwindCSS 4.2 avec composants Lucide React
+- **HTTP Client** : Axios avec intercepteurs et retry
+- **Internationalisation** : i18next pour le multilingue
+- **Animations** : Framer Motion pour les transitions
+- **Tests** : Vitest avec Testing Library
+- **Paiement** : Stripe React SDK
+- **QR Codes** : qrcode.react pour les billets
 
 ### 📁 Structure du Projet
 
 ```
 event-saas-back/
 ├── apps/
-│   ├── users/           # Gestion des utilisateurs et authentification
-│   ├── organisations/   # Gestion des organisations
-│   ├── events/          # Gestion des événements et inscriptions
-│   └── proprietaire/    # Interface propriétaires
+│   ├── users/           # Gestion utilisateurs et authentification
+│   ├── organisations/   # Gestion organisations et rôles
+│   ├── events/          # Gestion événements et assistant IA
+│   ├── inscriptions/    # Gestion inscriptions et billets
+│   ├── payments/        # Traitement paiements Stripe
+│   ├── notifications/   # Système notifications temps réel
+│   ├── assistant/       # Assistant IA et génération contenu
+│   └── feedback/        # Système feedback et évaluations
 ├── config/
 │   ├── settings/
 │   │   ├── base.py      # Configuration de base
 │   │   └── dev.py       # Configuration développement
-│   └── urls.py          # URLs principales
+│   ├── urls.py          # URLs principales
+│   └── wsgi.py          # WSGI pour déploiement
 ├── manage.py            # Script de gestion Django
-└── requirements.txt     # Dépendances Python
+├── requirements.txt     # Dépendances Python
+├── Dockerfile           # Configuration Docker
+└── azure-pipelines.yml # CI/CD Azure
 
 event-saas-front/
 ├── src/
 │   ├── pages/           # Pages de l'application
-│   │   ├── Home.jsx     # Page d'accueil
-│   │   ├── Login.jsx    # Connexion
-│   │   ├── Signup.jsx   # Inscription
-│   │   └── gestionnaire/ # Dashboard gestionnaire
-│   │   └── participant/  # Dashboard participant
-│   ├── services/
-│   │   └── api.js       # Configuration API
-│   └── main.jsx         # Point d'entrée
-├── package.json         # Dépendances Node.js
-└── vite.config.js       # Configuration Vite
+│   │   ├── Home.jsx     # Page d'accueil avec catalogue
+│   │   ├── Login.jsx    # Connexion utilisateur
+│   │   ├── Signup.jsx   # Inscription utilisateur
+│   │   ├── gestionnaire/ # Dashboard gestionnaire
+│   │   ├── participant/  # Dashboard participant
+│   │   └── proprietaire/ # Dashboard propriétaire
+│   ├── components/      # Composants réutilisables
+│   ├── services/        # Services API et utilitaires
+│   ├── contexts/        # Contextes React (state management)
+│   ├── i18n/           # Configuration internationalisation
+│   └── utils/          # Fonctions utilitaires
+├── package.json        # Dépendances Node.js
+├── vite.config.js      # Configuration Vite
+├── tailwind.config.js  # Configuration TailwindCSS
+├── Dockerfile          # Configuration Docker
+└── azure-pipelines.yml # CI/CD Azure
 ```
 
 ## 🚀 Prérequis
 
 ### Système
-- Python 3.11+
-- Node.js 18+
-- MySQL 8.0+
+- **Python** : 3.11+
+- **Node.js** : 18+
+- **MySQL** : 8.0+
+- **Git** : 2.0+
 
-### Outils
-- Git
-- Terminal/PowerShell
-- Navigateur web moderne
+### Services Externes
+- **Azure** : Base de données MySQL et Blob Storage
+- **Stripe** : Traitement des paiements
+- **Navigateur** : Chrome/Firefox/Edge modernes
 
-## 📦 Étapes d'Installation
+### Outils de Développement
+- **IDE** : VS Code, PyCharm, ou WebStorm
+- **Terminal** : PowerShell (Windows) ou Bash (Linux/Mac)
+- **Docker** : Optionnel pour déploiement
+
+## 📦 Installation
 
 ### 1. Cloner le Projet
 
@@ -95,66 +125,93 @@ cd event-saas-platform
 
 ### 2. Backend (Django)
 
-#### Configuration de l'environnement virtuel
+#### Configuration Environnement Virtuel
 ```bash
 cd event-saas-back
 python -m venv .venv
+
 # Windows
 .venv\Scripts\activate
+
 # Linux/Mac
 source .venv/bin/activate
 ```
 
-#### Installation des dépendances
+#### Installation Dépendances
 ```bash
 pip install -r requirements.txt
 ```
 
-#### Configuration de la base de données
-1. Créer une base de données MySQL nommée `event_saas`
-2. Configurer les variables d'environnement dans `.env` :
+#### Configuration Base de Données
+Créer un fichier `.env` dans `event-saas-back/` :
 
 ```env
+# Base de données Azure MySQL
 DB_NAME=event_saas
 DB_USER=votre_user_mysql
 DB_PASSWORD=votre_password_mysql
-DB_HOST=localhost
+DB_HOST=votre_server_mysql.mysql.database.azure.com
 DB_PORT=3306
-SECRET_KEY=votre_secret_key_django
+MYSQL_ATTR_SSL_CA=DigiCertGlobalRootG2.crt.pem
+
+# Django
+SECRET_KEY=votre_secret_key_django_très_long_et_aléatoire
+DJANGO_ENV=development
+ALLOWED_HOSTS=127.0.0.1,localhost
+
+# Stripe
+STRIPE_PUBLIC_KEY=pk_test_votre_clé_publique_stripe
+STRIPE_SECRET_KEY=sk_test_votre_clé_secrète_stripe
+
+# Azure Storage
+AZURE_ACCOUNT_NAME=votre_compte_azure
+AZURE_ACCOUNT_KEY=votre_clé_azure
+AZURE_CONTAINER=event-media
+
+# CORS
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
 
-#### Migration de la base de données
+#### Migration Base de Données
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-#### Création du superutilisateur
+#### Création Superutilisateur
 ```bash
 python manage.py createsuperuser
 ```
 
+#### Fichiers Statiques
+```bash
+python manage.py collectstatic --noinput
+```
+
 ### 3. Frontend (React)
 
-#### Installation des dépendances
+#### Installation Dépendances
 ```bash
 cd event-saas-front
 npm install
 ```
 
-#### Configuration de l'environnement
-Créer un fichier `.env` dans `event-saas-front/` :
+#### Configuration Environnement
+Créer un fichier `.env.development` dans `event-saas-front/` :
 
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8000/api
+VITE_STRIPE_PUBLIC_KEY=pk_test_votre_clé_publique_stripe
 ```
 
-## 🏃‍♂️ Étapes d'Exécution
+## 🏃‍♂️ Exécution
 
 ### 1. Démarrer le Backend
 
 ```bash
 cd event-saas-back
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # Linux/Mac
 python manage.py runserver
 ```
 
@@ -169,48 +226,82 @@ npm run dev
 
 Le frontend sera accessible sur `http://localhost:5173`
 
+### 3. Accès aux Services
+
+- **Application** : http://localhost:5173
+- **Admin Django** : http://127.0.0.1:8000/admin
+- **API Documentation** : http://127.0.0.1:8000/api/docs/
+- **Health Check** : http://127.0.0.1:8000/health/
+
 ## 📖 Guide d'Utilisation
 
-### 1. Première Configuration
+### 1. Configuration Initiale
 
-#### Création des organisations
+#### Création Organisation
 1. Accéder à `http://127.0.0.1:8000/admin`
 2. Se connecter avec le superutilisateur
-3. Créer une organisation dans la section "Organisations"
-4. Créer des utilisateurs propriétaires et gestionnaires
+3. Dans "Organisations", créer une nouvelle organisation
+4. Dans "Utilisateurs", créer des utilisateurs avec rôles appropriés
 
-#### Création des utilisateurs
-1. **Propriétaires** : Peuvent créer des événements pour leur organisation
-2. **Gestionnaires** : Peuvent gérer les événements existants
-3. **Participants** : Peuvent s'inscrire aux événements
+#### Configuration Stripe
+1. Créer un compte Stripe (mode test)
+2. Obtenir les clés API publique et secrète
+3. Configurer les webhooks dans Stripe Dashboard
+4. Ajouter les clés dans le fichier `.env`
 
 ### 2. Utilisation Quotidienne
 
-#### Pour les Organisateurs
-1. **Se connecter** : Utiliser le dashboard gestionnaire
-2. **Créer un événement** : Remplir le formulaire avec les détails
-3. **Publier l'événement** : Changer le statut de "brouillon" à "publié"
-4. **Suivre les inscriptions** : Consulter la liste des participants
+#### Propriétaire d'Organisation
+1. **Se connecter** : Utiliser le dashboard propriétaire
+2. **Créer événement** : Remplir le formulaire avec l'aide de l'IA
+3. **Publier** : Changer le statut de "brouillon" à "publié"
+4. **Suivre** : Consulter les inscriptions et statistiques
 
-#### Pour les Participants
-1. **Explorer** : Visiter la page d'accueil pour voir les événements
-2. **S'inscrire** : Cliquer sur "S'inscrire" sur un événement disponible
-3. **Confirmation** : Recevoir la confirmation immédiate
-4. **Suivi** : Consulter ses inscriptions dans son dashboard
+#### Gestionnaire d'Événements
+1. **Gérer événements** : Modifier et publier les événements existants
+2. **Staff** : Assigner du personnel aux événements
+3. **Notifications** : Envoyer des communications aux participants
+4. **Analytics** : Analyser les performances des événements
+
+#### Participant
+1. **Explorer** : Parcourir le catalogue d'événements
+2. **S'inscrire** : Cliquer sur "S'inscrire" et payer avec Stripe
+3. **Recevoir billet** : Obtenir un billet QR code par email
+4. **Évaluer** : Donner du feedback post-événement
 
 ### 3. Fonctionnalités Avancées
 
-#### API REST
-L'API est accessible via `http://127.0.0.1:8000/api/` avec documentation :
-- Swagger UI : `http://127.0.0.1:8000/api/docs/`
-- OpenAPI Schema : `http://127.0.0.1:8000/api/schema/`
+#### Assistant IA
+```javascript
+// Exemple d'utilisation de l'assistant
+const response = await api.post('/assistant/generate-description', {
+  titre: "Conférence Tech 2024",
+  lieu: "Paris",
+  capacite: 500,
+  prix: 99.99
+});
+```
 
-#### Endpoints Principaux
-- `GET /api/events/public-events/` : Lister les événements publics
-- `POST /api/events/simple-register/` : Inscription simple
-- `GET /api/events/evenements/` : Gestion des événements (authentifié)
-- `POST /api/users/login/` : Connexion
-- `POST /api/users/register/` : Inscription utilisateur
+#### Paiements Stripe
+```javascript
+// Exemple de paiement
+const stripe = await loadStripe(STRIPE_PUBLIC_KEY);
+const { error } = await stripe.confirmPayment({
+  clientSecret,
+  confirmationMethod: 'pay',
+  returnUrl: `${window.location.origin}/payment-success`,
+});
+```
+
+#### Notifications Temps Réel
+```javascript
+// WebSocket pour notifications
+const ws = new WebSocket('ws://localhost:8000/ws/notifications/');
+ws.onmessage = (event) => {
+  const notification = JSON.parse(event.data);
+  // Traiter la notification
+};
+```
 
 ## 🔧 Configuration
 
@@ -220,39 +311,72 @@ L'API est accessible via `http://127.0.0.1:8000/api/` avec documentation :
 ```env
 # Base de données
 DB_NAME=event_saas
-DB_USER=votre_user
-DB_PASSWORD=votre_password
-DB_HOST=localhost
+DB_USER=azure_user
+DB_PASSWORD=secure_password
+DB_HOST=azure_server.mysql.database.azure.com
 DB_PORT=3306
 
 # Django
-SECRET_KEY=votre_secret_key_ici
-DEBUG=True
+SECRET_KEY=django-secure-key-very-long-random-string
+DJANGO_ENV=development
+ALLOWED_HOSTS=127.0.0.1,localhost,yourdomain.com
+
+# Stripe
+STRIPE_PUBLIC_KEY=pk_live_xxx
+STRIPE_SECRET_KEY=sk_live_xxx
+
+# Azure Storage
+AZURE_ACCOUNT_NAME=storage_account
+AZURE_ACCOUNT_KEY=storage_key
+AZURE_CONTAINER=event-media
 
 # Email (optionnel)
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
-EMAIL_HOST_USER=votre_email@gmail.com
-EMAIL_HOST_PASSWORD=votre_password
+EMAIL_HOST_USER=your_email@gmail.com
+EMAIL_HOST_PASSWORD=your_app_password
+
+# CORS
+CORS_ALLOWED_ORIGINS=http://localhost:5173,https://yourdomain.com
 ```
 
-#### Frontend (.env)
+#### Frontend (.env.development)
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8000/api
+VITE_STRIPE_PUBLIC_KEY=pk_test_xxx
+VITE_WS_URL=ws://localhost:8000/ws
 ```
 
-### Personnalisation
+### Configuration Production
 
-#### Modification des styles
-- Les styles sont gérés avec TailwindCSS
-- Fichier de configuration : `tailwind.config.js`
-- Classes personnalisées dans les composants React
+#### HTTPS et Sécurité
+```python
+# settings/base.py
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_HSTS_SECONDS = 31536000
+```
 
-#### Extension des fonctionnalités
-- Ajouter de nouveaux modèles dans `apps/*/models.py`
-- Créer de nouvelles vues dans `apps/*/views.py`
-- Ajouter des routes dans `apps/*/urls.py`
+#### Base de Données Production
+```python
+# Utiliser Azure MySQL avec SSL
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
+        'OPTIONS': {
+            'ssl': {'ca': os.getenv('MYSQL_ATTR_SSL_CA')},
+            'charset': 'utf8mb4',
+        },
+    }
+}
+```
 
 ## 🐛 Dépannage
 
@@ -268,79 +392,212 @@ python manage.py check
 
 # Vérifier les migrations
 python manage.py showmigrations
+
+# Vérifier la configuration
+python manage.py diffsettings
 ```
 
-#### Erreur de connexion à la base de données
-- Vérifier que MySQL est en cours d'exécution
+#### Erreur de connexion base de données
+- Vérifier que MySQL Azure est accessible
 - Confirmer les identifiants dans `.env`
-- S'assurer que la base de données existe
+- S'assurer que le certificat SSL est présent
+- Tester avec un client MySQL externe
 
-#### Frontend ne se connecte pas au backend
-- Vérifier que le backend est bien démarré
+#### Erreur Stripe
+- Vérifier les clés API (test vs production)
+- Confirmer la configuration des webhooks
+- Vérifier les domaines autorisés dans Stripe
+- Tester avec les cartes de test Stripe
+
+#### Frontend ne se connecte pas
+- Vérifier que le backend est démarré
 - Confirmer l'URL dans `VITE_API_BASE_URL`
-- Vérifier les CORS dans les settings Django
+- Vérifier la configuration CORS
+- Consulter les logs du navigateur (F12)
 
 #### Erreur 500 lors de l'inscription
-- Vérifier les logs du backend : `python manage.py runserver --verbosity=2`
-- Confirmer que les migrations sont appliquées
-- Vérifier les permissions de l'utilisateur
+```bash
+# Logs détaillés du backend
+python manage.py runserver --verbosity=2
 
-### Logs et Debug
+# Vérifier les logs Azure
+az webapp log tail --name <app-name> --resource-group <resource-group>
+
+# Debug dans le code
+import logging
+logger = logging.getLogger(__name__)
+logger.error("Erreur détaillée ici")
+```
+
+### Tests et Debug
+
+#### Backend Tests
+```bash
+# Exécuter tous les tests
+python manage.py test
+
+# Tests spécifiques
+python manage.py test apps.events.tests
+
+# Coverage
+coverage run --source='.' manage.py test
+coverage report
+```
+
+#### Frontend Tests
+```bash
+# Exécuter les tests
+npm test
+
+# Tests avec coverage
+npm run test:coverage
+
+# Tests UI
+npm run test:ui
+```
+
+#### API Testing
+```bash
+# Documentation API
+curl http://127.0.0.1:8000/api/docs/
+
+# Test endpoint
+curl -H "Authorization: Bearer <token>" \
+     http://127.0.0.1:8000/api/events/
+```
+
+## 🚀 Déploiement
+
+### Azure App Service
 
 #### Backend
 ```bash
-# Logs détaillés
-python manage.py runserver --verbosity=2
+# Build Docker image
+docker build -t event-saas-back .
 
-# Vérifier les modèles
-python manage.py shell
->>> from apps.events.models import Evenement
->>> Evenement.objects.all()
+# Deploy to Azure
+az webapp up --name event-saas-back --sku B1 --location westeurope
 ```
 
 #### Frontend
-- Ouvrir les outils de développement du navigateur
-- Consulter l'onglet "Console" pour les erreurs
-- Vérifier l'onglet "Network" pour les requêtes API
+```bash
+# Build for production
+npm run build
 
-## 📝 Notes de Développement
+# Deploy to Azure Static Web App
+az staticwebapp create \
+  --name event-saas-front \
+  --resource-group event-saas-rg \
+  --source . \
+  --location westeurope \
+  --sku Standard
+```
 
-### Conventions de Code
-- **Backend** : PEP 8, noms de variables en français
-- **Frontend** : JSX, composants fonctionnels avec hooks
-- **API** : RESTful, réponses JSON structurées
+### Configuration Production
 
-### Sécurité
-- JWT tokens pour l'authentification
-- CORS configuré pour le frontend
-- Validation des entrées côté serveur
-- HTTPS recommandé en production
+#### Variables d'Environnement Azure
+```bash
+# Set environment variables
+az webapp config appsettings set \
+  --name event-saas-back \
+  --resource-group event-saas-rg \
+  --settings DB_NAME=prod_db DB_USER=prod_user
+```
 
-### Performance
-- Pagination pour les listes d'événements
-- Mise en cache des données statiques
-- Optimisation des images avec Vite
+#### SSL et Domaines
+```bash
+# Add custom domain
+az webapp config hostname add \
+  --webapp-name event-saas-back \
+  --resource-group event-saas-rg \
+  --hostname yourdomain.com
+
+# Add SSL certificate
+az webapp config ssl bind \
+  --webapp-name event-saas-back \
+  --resource-group event-saas-rg \
+  --certificate-thumbprint <thumbprint> \
+  --ssl-type SNIEnabled
+```
+
+## 📊 Monitoring et Analytics
+
+### Azure Monitor
+```bash
+# Enable Application Insights
+az monitor app-insights component create \
+  --app event-saas-insights \
+  --location westeurope \
+  --application-type web
+
+# Connect to web app
+az webapp config appsettings set \
+  --name event-saas-back \
+  --resource-group event-saas-rg \
+  --settings APPINSIGHTS_INSTRUMENTATIONKEY=<key>
+```
+
+### Logs et Métriques
+```python
+# Dans views.py
+import logging
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
+def create_event(request):
+    logger.info(f"Création événement par {request.user.email}")
+    # ... code
+    
+    logger.info(f"Événement {event.id} créé avec succès")
+```
 
 ## 🤝 Contribution
 
-Pour contribuer au projet :
+### Processus de Développement
 1. Forker le repository
-2. Créer une branche feature
+2. Créer une branche feature : `git checkout -b feature/nouvelle-fonctionnalité`
 3. Faire les modifications
-4. Tester avec `python manage.py test` et `npm test`
-5. Soumettre une pull request
+4. Tester : `npm test` et `python manage.py test`
+5. Commit : `git commit -m "Add: nouvelle fonctionnalité"`
+6. Push : `git push origin feature/nouvelle-fonctionnalité`
+7. Pull Request
+
+### Conventions de Code
+- **Python** : PEP 8, noms de variables en français
+- **JavaScript/JSX** : ESLint configuration, composants fonctionnels
+- **Git** : Messages de commit conventionnels
+- **API** : RESTful, documentation OpenAPI
+
+### Code Review
+- Revue obligatoire pour toute PR
+- Tests requis pour nouvelles fonctionnalités
+- Documentation mise à jour
+- Performance et sécurité vérifiées
 
 ## 📄 Licence
 
-Ce projet est sous licence MIT. Voir le fichier LICENSE pour plus de détails.
+Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
 ## 📞 Support
 
-Pour toute question ou problème :
-- Créer une issue sur GitHub
-- Consulter la documentation API
-- Vérifier les logs pour le debug
+### Documentation
+- **API Docs** : http://127.0.0.1:8000/api/docs/
+- **Admin Guide** : http://127.0.0.1:8000/admin/
+- **Code Comments** : Documentation inline dans le code
+
+### Communauté
+- **Issues GitHub** : Signaler des bugs et demander des fonctionnalités
+- **Discussions** : Questions et suggestions d'amélioration
+- **Wiki** : Guides et tutoriels détaillés
+
+### Contact
+- **Email** : support@event-saas.com
+- **Slack** : #event-saas-community
+- **Twitter** : @EventSaaSPlatform
 
 ---
 
-**Développé avec ❤️ pour simplifier la gestion d'événements**
+**🎊 Développé avec passion pour simplifier la gestion d'événements modernes**
+
+*Technologies : Django, React, Stripe, Azure, TailwindCSS, i18next*

@@ -23,7 +23,7 @@ class EvenementSerializer(serializers.ModelSerializer):
             "id", "titre", "description", "lieu", "date_debut", "date_fin",
             "capacite_max", "prix", "statut", "organisation", "organisation_nom",
             "createur", "createur_nom", "date_creation", "date_update",
-            "places_disponibles", "est_complet", "photos"
+            "places_disponibles", "est_complet", "photos", "image_principale"  # Ajouté pour l'image de couverture
         ]
         read_only_fields = ["createur", "organisation", "date_creation", "date_update"]
 
