@@ -1,4 +1,5 @@
 # apps/events/serializers.py
+# apps/events/serializers.py
 from rest_framework import serializers
 from django.utils import timezone
 from .models import Evenement, AssignationEvenement, EventPhoto
@@ -16,14 +17,18 @@ class EvenementSerializer(serializers.ModelSerializer):
     places_disponibles = serializers.IntegerField(read_only=True)
     est_complet = serializers.BooleanField(read_only=True)
     photos = EventPhotoSerializer(many=True, read_only=True)
+    
+    # Optionnel : pour afficher le libellé complet du secteur (ex: "Technologie" au lieu de "technologie")
+    secteur_libelle = serializers.CharField(source="get_secteur_display", read_only=True)
 
     class Meta:
         model = Evenement
         fields = [
-            "id", "titre", "description", "lieu", "date_debut", "date_fin",
-            "capacite_max", "prix", "statut", "organisation", "organisation_nom",
-            "createur", "createur_nom", "date_creation", "date_update",
-            "places_disponibles", "est_complet", "photos", "image_principale"  # Ajouté pour l'image de couverture
+            "id", "titre", "description", "lieu", "secteur", "secteur_libelle", 
+            "date_debut", "date_fin", "capacite_max", "prix", "statut", 
+            "organisation", "organisation_nom", "createur", "createur_nom", 
+            "date_creation", "date_update", "places_disponibles", "est_complet", 
+            "photos", "image_principale"
         ]
         read_only_fields = ["createur", "organisation", "date_creation", "date_update"]
 

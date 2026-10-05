@@ -7,9 +7,5 @@ router = DefaultRouter()
 router.register(r'', EvenementViewSet, basename='evenement')
 
 urlpatterns = [
-    # On garde uniquement le router principal pour les événements classiques
     path('', include(router.urls)),
-    
-    # ❌ SUPPRIME OU RECOUVRE CETTE LIGNE qui sème la confusion :
-    # path('assigned/', include('apps.events.staff_urls')),
 ]

@@ -1,4 +1,5 @@
 # apps/events/views.py
+# apps/events/views.py
 from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -16,7 +17,6 @@ class EvenementViewSet(viewsets.ModelViewSet):
     ViewSet pour gérer les événements.
     Incorpore une logique multi-tenant et une intégration IA.
     """
-    queryset = Evenement.objects.all()
     serializer_class = EvenementSerializer
 
     def get_permissions(self):
@@ -28,34 +28,41 @@ class EvenementViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
         
-        # Utilisation de l'opérateur OR (|) pour autoriser Propriétaire OU Gestionnaire
         return [IsAuthenticated(), (IsProprietaire | IsGestionnaire)()]
 
     def get_queryset(self):
         """
-        Filtre les événements selon le rôle et l'organisation :
-        1. Anonyme : uniquement les événements publiés.
-        2. Gestionnaire : ses propres créations au sein de son organisation.
-        3. Propriétaire : tous les événements de son organisation.
-        4. Autre (Staff/Participant) : uniquement les événements publiés.
+        Filtre et OPTIMISE les événements pour éviter le problème de lenteur (N+1 queries).
         """
         user = self.request.user
         
+        # ✅ OPTIMISATION CRUCIALE : Récupère les relations en une seule requête SQL pour éviter la latence
+        queryset = Evenement.objects.select_related(
+            "organisation", "createur"
+        ).prefetch_related(
+            "photos"
+        ).all()
+        
+        # Filtrage optionnel par secteur (ex: /api/events/?secteur=technologie)
+        secteur = self.request.query_params.get('secteur')
+        if secteur:
+            queryset = queryset.filter(secteur=secteur)
+
         if not user.is_authenticated:
-            return Evenement.objects.filter(statut="publie")
+            return queryset.filter(statut="publie")
 
         # Isolation multi-tenant
         if user.role == "gestionnaire":
-            return Evenement.objects.filter(
+            return queryset.filter(
                 organisation=user.organisation, 
                 createur=user
             )
 
         if user.role == "proprietaire":
-            return Evenement.objects.filter(organisation=user.organisation)
+            return queryset.filter(organisation=user.organisation)
 
         # Par défaut (Participants ou Staff non assignés ici)
-        return Evenement.objects.filter(statut="publie")
+        return queryset.filter(statut="publie")
 
     def perform_create(self, serializer):
         """Associe automatiquement le créateur et son organisation à l'événement."""
@@ -80,6 +87,7 @@ class EvenementViewSet(viewsets.ModelViewSet):
             "titre": data.get("titre", ""),
             "description": data.get("description", ""),
             "lieu": data.get("lieu", ""),
+            "secteur": data.get("secteur", ""),  # <-- Ajouté pour l'IA
             "prix": data.get("prix", 0),
             "capacite_max": data.get("capacite_max", 0),
             "date_debut": data.get("date_debut"),

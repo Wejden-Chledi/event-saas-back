@@ -7,6 +7,4 @@ class InscriptionsConfig(AppConfig):
     name = 'apps.inscriptions'
 
     def ready(self):
-        # Supprime ou commente cette ligne car le fichier n'existe pas
-        # import apps.inscriptions.signals  <-- À SUPPRIMER
         pass

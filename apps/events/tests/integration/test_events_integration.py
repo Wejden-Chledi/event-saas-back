@@ -69,8 +69,8 @@ class TestEvenementIntegration:
             "titre": "Event Test",
             "description": "Test description",
             "lieu": "Tunis",
-            "date_debut": "2026-06-01T10:00:00Z",
-            "date_fin": "2026-06-01T18:00:00Z",
+            "date_debut": "2027-06-01T10:00:00Z",
+            "date_fin": "2027-06-01T18:00:00Z",
             "capacite_max": 100,
             "prix": "20.00",
             "statut": "brouillon"
@@ -105,8 +105,8 @@ class TestEvenementIntegration:
             "titre": "Event A",
             "description": "desc",
             "lieu": "Tunis",
-            "date_debut": "2026-06-01T10:00:00Z",
-            "date_fin": "2026-06-01T18:00:00Z",
+            "date_debut": "2027-06-01T10:00:00Z",
+            "date_fin": "2027-06-01T18:00:00Z",
             "capacite_max": 100,
             "prix": "20.00"
         }, format="json")

@@ -18,6 +18,20 @@ class Evenement(models.Model):
         ('termine', 'Terminé'),
     ]
 
+    # ------------------------------------------------------------------------
+    # Secteurs d'activité possibles.
+    # ------------------------------------------------------------------------
+    SECTEUR_CHOICES = [
+        ('musique', 'Musique'),
+        ('tech', 'Tech'),
+        ('culture', 'Culture'),
+        ('sport', 'Sport'),
+        ('business', 'Business'),
+        ('formation', 'Formation'),
+        ('autre', 'Autre'),
+    ]
+
+    secteur = models.CharField(max_length=20, choices=SECTEUR_CHOICES, default='autre', help_text="Secteur d'activité concerné par l'événement")
     titre = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     image_principale = models.ImageField(upload_to="events/covers/", blank=True, null=True)

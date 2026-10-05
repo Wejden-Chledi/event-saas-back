@@ -1,4 +1,6 @@
 # apps/users/views/auth_views.py
+# Gestion des jetons JWT pour la connexion et la déconnexion
+
 
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -9,28 +11,21 @@ from rest_framework.response import Response
 
 from apps.users.serializers import UserSerializer
 
-
-# -------------------------------------------------
-# LOGIN JWT
-# -------------------------------------------------
 class CustomTokenObtainPairView(TokenObtainPairView):
-
+    """
+    Surcharge la vue de connexion par défaut pour ajouter une vérification de statut.
+    """
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         user = serializer.user
 
-        # ❌ utilisateur inactif
+        # Sécurité : On bloque la connexion si l'utilisateur est marqué 'inactif'
         if user.statut != "actif":
-            return Response(
-                {"error": "Compte inactif"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({"error": "Compte inactif"}, status=status.HTTP_403_FORBIDDEN)
 
-        # ✅ génération tokens
+        # Génération des tokens JWT (Access = accès temporaire, Refresh = renouvellement)
         refresh = RefreshToken.for_user(user)
-
         user_data = UserSerializer(user).data
 
         return Response({
@@ -39,39 +34,21 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             "user": user_data,
         })
 
-
-# -------------------------------------------------
-# LOGOUT JWT (SAFE VERSION)
-# -------------------------------------------------
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
-
+    """
+    Déconnexion : blacklist le jeton pour qu'il ne puisse plus être utilisé.
+    """
     refresh_token = request.data.get("refresh")
-
     if not refresh_token:
-        return Response(
-            {"error": "Refresh token requis"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "Refresh token requis"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         token = RefreshToken(refresh_token)
-
-        # -------------------------------------------------
-        # BLACKLIST SAFE MODE
-        # -------------------------------------------------
-        # fonctionne seulement si token blacklist activé
+        # Si le système de blacklist est configuré, on invalide le jeton
         if hasattr(token, "blacklist"):
             token.blacklist()
-
-        return Response(
-            {"message": "Déconnecté avec succès"},
-            status=status.HTTP_200_OK
-        )
-
+        return Response({"message": "Déconnecté avec succès"}, status=status.HTTP_200_OK)
     except Exception:
-        return Response(
-            {"error": "Token invalide"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "Token invalide"}, status=status.HTTP_400_BAD_REQUEST)
