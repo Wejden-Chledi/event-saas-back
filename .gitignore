@@ -5,3 +5,10 @@ __pycache__/
 *.pyo
 .vscode/
 .idea/
+# Test / Coverage
+.coverage
+coverage/
+.pytest_cache/
+
+# Generated QR codes
+media/billets_qr/
